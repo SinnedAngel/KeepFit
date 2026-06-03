@@ -2018,8 +2018,8 @@ fun WorkoutTimerDialog(
     }
 
     // Timer Effect
-    LaunchedEffect(isTimerRunning, currentPhase, phaseSecondsRemaining) {
-        if (isTimerRunning && phaseSecondsRemaining > 0) {
+    LaunchedEffect(isTimerRunning) {
+        if (isTimerRunning) {
             while (isTimerRunning && phaseSecondsRemaining > 0) {
                 kotlinx.coroutines.delay(1000)
                 totalSecondsElapsed++
