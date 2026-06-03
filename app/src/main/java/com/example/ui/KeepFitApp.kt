@@ -2,6 +2,15 @@ package com.example.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.speech.tts.TextToSpeech
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
+import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -1840,6 +1849,10 @@ fun WorkoutTimerDialog(
     
     var totalLoops by remember { mutableIntStateOf(if (isBreathing) 5 else 3) }
 
+    // Sound customization states
+    var enableVoice by remember { mutableStateOf(true) }
+    var enableAmbientSound by remember { mutableStateOf(true) }
+
     // Dialog state: "CONFIG", "RUNNING", "PAUSED", "COMPLETED"
     var dialogState by remember { mutableStateOf("CONFIG") }
     
@@ -1849,6 +1862,151 @@ fun WorkoutTimerDialog(
     var phaseSecondsRemaining by remember { mutableIntStateOf(0) }
     var totalSecondsElapsed by remember { mutableIntStateOf(0) }
     var isTimerRunning by remember { mutableStateOf(false) }
+
+    // Setup TTS Engine and Dispose on Exit
+    val context = LocalContext.current
+    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+    var isTtsReady by remember { mutableStateOf(false) }
+
+    DisposableEffect(context) {
+        var instance: TextToSpeech? = null
+        instance = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                isTtsReady = true
+                try {
+                    instance?.language = Locale.ENGLISH
+                } catch (e: Exception) {
+                    Log.e("KeepFitTTS", "Failed to set US Locale: ${e.message}")
+                }
+            }
+        }
+        tts = instance
+        onDispose {
+            instance?.stop()
+            instance?.shutdown()
+        }
+    }
+
+    // Speech delivery function
+    fun speakText(text: String) {
+        if (enableVoice && isTtsReady) {
+            try {
+                tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
+            } catch (e: Exception) {
+                Log.e("KeepFitTTS", "Speech delivery error: ${e.message}")
+            }
+        }
+    }
+
+    // Voice announcement triggers on phase transitions
+    LaunchedEffect(currentPhase, currentLoop, isTimerRunning) {
+        if (isTimerRunning) {
+            val announcement = when (currentPhase) {
+                "INHALE" -> if (currentLoop > 1) "Cycle $currentLoop. Inhale through your nose." else "Inhale through your nose."
+                "HOLD" -> "Hold your breath."
+                "EXHALE" -> "Exhale slowly."
+                "REST" -> "Rest."
+                "HOLD_POSTURE" -> if (currentLoop > 1) "Cycle $currentLoop. Hold posture stance." else "Hold posture stance."
+                else -> ""
+            }
+            if (announcement.isNotEmpty()) {
+                speakText(announcement)
+            }
+        }
+    }
+
+    // Voice announcement trigger when session finishes or when starting
+    LaunchedEffect(dialogState) {
+        if (dialogState == "COMPLETED") {
+            speakText("Practice complete. Outstanding work!")
+        }
+    }
+
+    // Real-time Breathing audio flow synthesis
+    LaunchedEffect(isTimerRunning, currentPhase, enableAmbientSound, isBreathing) {
+        if (!isBreathing || !isTimerRunning || !enableAmbientSound || (currentPhase != "INHALE" && currentPhase != "EXHALE")) {
+            return@LaunchedEffect
+        }
+
+        withContext(Dispatchers.Default) {
+            var track: AudioTrack? = null
+            try {
+                val sampleRate = 22050
+                val minBufSize = AudioTrack.getMinBufferSize(
+                    sampleRate,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT
+                ).coerceAtLeast(4096)
+
+                track = AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(minBufSize)
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                    )
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .build()
+
+                track.play()
+
+                val random = java.util.Random()
+                val chunk = ShortArray(1024)
+                var lastValue1 = 0f
+                var lastValue2 = 0f
+
+                while (isActive) {
+                    val maxPhaseSeconds = if (currentPhase == "INHALE") inhaleSec else exhaleSec
+                    val remaining = phaseSecondsRemaining.toFloat()
+
+                    // Shape a bell-curve envelope for inhale and exhale breaths
+                    val progressRatio = if (currentPhase == "INHALE") {
+                        (maxPhaseSeconds - remaining) / maxPhaseSeconds.coerceAtLeast(1)
+                    } else {
+                        remaining / maxPhaseSeconds.coerceAtLeast(1)
+                    }
+
+                    val envelope = kotlin.math.sin(progressRatio.coerceIn(0f, 1f) * Math.PI.toFloat())
+
+                    // Low-pass filter coefficient for airflow sound (Inhale is sharper, Exhale is deeper/warmer)
+                    val fc = if (currentPhase == "INHALE") 0.35f else 0.22f
+                    val targetVolume = envelope * 0.3f // Safe, comforting volume range
+
+                    for (i in chunk.indices) {
+                        val rawNoise = random.nextFloat() * 2f - 1f
+                        val valIn = rawNoise * targetVolume
+                        
+                        // Simple 2-pole lowpass filter for an organic wind/breathing effect
+                        val filtered = (valIn + lastValue1 + lastValue2) * fc
+                        lastValue2 = lastValue1
+                        lastValue1 = valIn
+
+                        chunk[i] = (filtered * 32767f).toInt().coerceIn(-32768, 32767).toShort()
+                    }
+
+                    track.write(chunk, 0, chunk.size)
+                    kotlinx.coroutines.delay(10)
+                }
+            } catch (e: Exception) {
+                Log.e("KeepFitAudio", "Dynamic synth error: ${e.message}")
+            } finally {
+                try {
+                    track?.stop()
+                    track?.release()
+                } catch (e: Exception) {
+                    // Fail-safe cleanup
+                }
+            }
+        }
+    }
 
     // Calculate dynamic values for completion screen
     val totalEstimatedSeconds = remember(isBreathing, inhaleSec, holdSec, exhaleSec, restSec, holdPostureSec, totalLoops) {
@@ -2065,7 +2223,107 @@ fun WorkoutTimerDialog(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Audio Configuration Controls (Vocal guidance & breathing loop wind synthesis)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Voice Guidance Card Trigger
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { enableVoice = !enableVoice }
+                                    .testTag("voice_guidance_toggle_card"),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (enableVoice) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (enableVoice) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Vocal Guide",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "TTS voice commands",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontSize = 9.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = enableVoice,
+                                        onCheckedChange = { enableVoice = it },
+                                        modifier = Modifier.scale(0.7f)
+                                    )
+                                }
+                            }
+
+                            if (isBreathing) {
+                                // Dynamic AirWave sound synthesizer Trigger
+                                Card(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { enableAmbientSound = !enableAmbientSound }
+                                        .testTag("ambient_sound_toggle_card"),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (enableAmbientSound) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                    ),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (enableAmbientSound) MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Lung Wave",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "Breathing audio wind",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontSize = 9.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = enableAmbientSound,
+                                            onCheckedChange = { enableAmbientSound = it },
+                                            modifier = Modifier.scale(0.7f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         // Duration Summary
                         Card(
@@ -2115,6 +2373,7 @@ fun WorkoutTimerDialog(
                                 phaseSecondsRemaining = if (isBreathing) inhaleSec else holdPostureSec
                                 totalSecondsElapsed = 0
                                 isTimerRunning = true
+                                speakText("Begin practice. Expand your body.")
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2201,6 +2460,70 @@ fun WorkoutTimerDialog(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.secondary
                                 )
+                            }
+
+                            // Active Practice Screen Sound & Speech Quick Controls
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(top = 8.dp)
+                            ) {
+                                // Live Speech guide toggle mini trigger
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable { 
+                                            enableVoice = !enableVoice 
+                                            if (enableVoice) {
+                                                speakText("Speech guide active.")
+                                            }
+                                        }
+                                        .background(if (enableVoice) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Gray.copy(alpha = 0.1f))
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (enableVoice) Icons.Default.PlayArrow else Icons.Default.Close,
+                                        contentDescription = "Voice Guide Activator",
+                                        tint = if (enableVoice) MaterialTheme.colorScheme.primary else Color.Gray,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (enableVoice) "Voice: ON" else "Voice: OFF",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (enableVoice) MaterialTheme.colorScheme.primary else Color.Gray
+                                    )
+                                }
+
+                                if (isBreathing) {
+                                    // Live Breathing wind synthesizer toggle mini trigger
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .clickable { enableAmbientSound = !enableAmbientSound }
+                                            .background(if (enableAmbientSound) MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f) else Color.Gray.copy(alpha = 0.1f))
+                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (enableAmbientSound) Icons.Default.Favorite else Icons.Default.Close,
+                                            contentDescription = "Auditory Wave Activator",
+                                            tint = if (enableAmbientSound) MaterialTheme.colorScheme.secondary else Color.Gray,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = if (enableAmbientSound) "Synth: ON" else "Synth: OFF",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (enableAmbientSound) MaterialTheme.colorScheme.secondary else Color.Gray
+                                        )
+                                    }
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
