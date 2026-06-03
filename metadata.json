@@ -1,0 +1,6 @@
+{
+  "name": "Keep Fit",
+  "description": "Premium health tracking and fitness flow app with walk steps counter, BMI metrics, and daily movement checklists tailored to user martial health rank.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
