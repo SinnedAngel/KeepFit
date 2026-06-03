@@ -91,7 +91,7 @@ fun KeepFitApp(
                                     .background(MaterialTheme.colorScheme.secondary, CircleShape)
                             )
                             Text(
-                                text = "A subsidiary of Kateda",
+                                text = KatedaL10n.get("app_subtitle", userProfile.languageCode),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                 fontWeight = FontWeight.Bold
@@ -126,7 +126,7 @@ fun KeepFitApp(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
                     icon = { Icon(imageVector = Icons.Default.Home, contentDescription = "Dashboard") },
-                    label = { Text("Dashboard") },
+                    label = { Text(KatedaL10n.get("tab_dashboard", userProfile.languageCode)) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.primary,
                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -137,7 +137,7 @@ fun KeepFitApp(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
                     icon = { Icon(imageVector = Icons.Default.PlayArrow, contentDescription = "Workouts") },
-                    label = { Text("Exercises") },
+                    label = { Text(KatedaL10n.get("tab_exercises", userProfile.languageCode)) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.primary,
                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -148,7 +148,7 @@ fun KeepFitApp(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
                     icon = { Icon(imageVector = Icons.Default.Notifications, contentDescription = "History & Settings") },
-                    label = { Text("Reminder & Logs") },
+                    label = { Text(KatedaL10n.get("tab_reminder_logs", userProfile.languageCode)) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.primary,
                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -186,8 +186,8 @@ fun KeepFitApp(
                 UserProfileDialog(
                     userProfile = userProfile,
                     onDismiss = { showEditProfileDialog = false },
-                    onSave = { name, level, height, weight, stepGoal ->
-                        viewModel.updateProfile(name, level, height, weight, stepGoal)
+                    onSave = { name, level, height, weight, stepGoal, languageCode ->
+                        viewModel.updateProfile(name, level, height, weight, stepGoal, languageCode)
                         showEditProfileDialog = false
                     },
                     levels = viewModel.KatedaLevels
@@ -261,19 +261,19 @@ fun DashboardScreen(
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
-                            text = "Greetings, ${userProfile.name}",
+                            text = KatedaL10n.get("greetings", userProfile.languageCode) + ", ${userProfile.name}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Level: ${userProfile.KatedaLevel}",
+                            text = KatedaL10n.get("level", userProfile.languageCode) + ": ${userProfile.KatedaLevel}",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.secondary
                         )
                         Text(
-                            text = "Subsidiary of Kateda Central Energy",
+                            text = KatedaL10n.get("sub_agency", userProfile.languageCode),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -295,7 +295,7 @@ fun DashboardScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Daily Steps Circulation",
+                        text = KatedaL10n.get("daily_steps", userProfile.languageCode),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -344,12 +344,12 @@ fun DashboardScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Goal: ${userProfile.dailyStepGoal}",
+                                text = KatedaL10n.get("goal", userProfile.languageCode) + ": ${userProfile.dailyStepGoal}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "${(percentage * 100).toInt()}% completed",
+                                text = "${(percentage * 100).toInt()}% " + KatedaL10n.get("completed_percentage", userProfile.languageCode),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold,
@@ -362,7 +362,7 @@ fun DashboardScreen(
 
                     // Quick Steps Increment Panel
                     Text(
-                        text = "Calibrate Walk Steps Log",
+                        text = KatedaL10n.get("calibrate", userProfile.languageCode),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -465,7 +465,7 @@ fun DashboardScreen(
                     modifier = Modifier.padding(20.dp)
                 ) {
                     Text(
-                        text = "BMI & Weight Alignment",
+                        text = KatedaL10n.get("bmi_alignment", userProfile.languageCode),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -479,7 +479,7 @@ fun DashboardScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Current Weight",
+                                text = KatedaL10n.get("current_weight", userProfile.languageCode),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -492,7 +492,7 @@ fun DashboardScreen(
                         }
                         Column {
                             Text(
-                                text = "Current Height",
+                                text = KatedaL10n.get("current_height", userProfile.languageCode),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -505,7 +505,7 @@ fun DashboardScreen(
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                text = "Body Mass Index (BMI)",
+                                text = KatedaL10n.get("bmi_index", userProfile.languageCode),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -539,13 +539,20 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "Kateda Energy Diagnostic",
+                                    text = KatedaL10n.get("diagnostic", userProfile.languageCode),
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.secondary
                                 )
+                                val resolvedBmiRating = when {
+                                    currentBmiRating.startsWith("Underweight") -> if (userProfile.languageCode == "ID") "Kurang Berat Badan (Butuh Asupan Energi Inti)" else currentBmiRating
+                                    currentBmiRating.startsWith("Optimal") -> if (userProfile.languageCode == "ID") "Keseimbangan Optimal (Kesehatan Harmonis)" else currentBmiRating
+                                    currentBmiRating.startsWith("Overweight") -> if (userProfile.languageCode == "ID") "Kelebihan Berat Badan (Butuh Pemadatan Kinetik)" else currentBmiRating
+                                    currentBmiRating.startsWith("Obese") -> if (userProfile.languageCode == "ID") "Obesitas (Butuh Sirkulasi Energi Terfokus)" else currentBmiRating
+                                    else -> currentBmiRating
+                                }
                                 Text(
-                                    text = currentBmiRating,
+                                    text = resolvedBmiRating,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     fontWeight = FontWeight.Medium
@@ -629,13 +636,18 @@ fun WorkoutsScreen(
             item {
                 Column {
                     Text(
-                        text = "Kateda Subsidiary Fitness Flows",
+                        text = KatedaL10n.get("fitness_flows", userProfile.languageCode),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.primary
                     )
+                    val exerciseDesc = if (userProfile.languageCode == "ID") {
+                        "Pola gerakan khusus ini diselaraskan untuk tingkat ${userProfile.KatedaLevel} dan pengkondisian dasar fisik. Berlatih setiap hari meningkatkan kapasitas oksigen perut bagian dalam."
+                    } else {
+                        "These tailored forms are specialized for ${userProfile.KatedaLevel} and foundational conditioning. Practicing daily promotes deep abdominal oxygenation."
+                    }
                     Text(
-                        text = "These tailored forms are specialized for ${userProfile.KatedaLevel} and foundational conditioning. Practicing daily promotes deep abdominal oxygenation.",
+                        text = exerciseDesc,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp)
@@ -652,7 +664,7 @@ fun WorkoutsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No customized physical exercises found for this level.\nTry choosing a different martial art level in your profile settings.",
+                            text = KatedaL10n.get("no_exercise_level", userProfile.languageCode),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -806,7 +818,7 @@ fun WorkoutsScreen(
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "Start Guided Practice Timer",
+                                            text = KatedaL10n.get("start_guided", userProfile.languageCode),
                                             color = Color.Black,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -818,7 +830,11 @@ fun WorkoutsScreen(
                                         onClick = {
                                             viewModel.trackCompletedWorkout(routine)
                                             // trigger a delight feedback
-                                            celebrationMessage = "Central Energy Logged! You've accomplished '${routine.name}' (+${routine.caloriesBurned} kcal)"
+                                            celebrationMessage = if (userProfile.languageCode == "ID") {
+                                                "Energi Inti Tercatat! Anda telah menyelesaikan '${routine.name}' (+${routine.caloriesBurned} kkal)"
+                                            } else {
+                                                "Central Energy Logged! You've accomplished '${routine.name}' (+${routine.caloriesBurned} kcal)"
+                                            }
                                         },
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -826,7 +842,7 @@ fun WorkoutsScreen(
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                                     ) {
                                         Text(
-                                            text = "Quick Log Practice Finish",
+                                            text = KatedaL10n.get("quick_log", userProfile.languageCode),
                                             color = MaterialTheme.colorScheme.primary,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -884,6 +900,7 @@ fun WorkoutsScreen(
         if (activeTimerRoutine != null) {
             WorkoutTimerDialog(
                 routine = activeTimerRoutine!!,
+                languageCode = userProfile.languageCode,
                 onDismiss = { activeTimerRoutine = null },
                 onComplete = { customDuration, customCalories ->
                     viewModel.trackCustomCompletedWorkout(
@@ -936,13 +953,13 @@ fun RemindersAndHistoryScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Daily Physical Reminder",
+                                text = KatedaL10n.get("daily_reminder", userProfile.languageCode),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Set alerts for martial breathing routines",
+                                text = KatedaL10n.get("set_alerts", userProfile.languageCode),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -979,7 +996,7 @@ fun RemindersAndHistoryScreen(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
-                                        text = "Current Alert Slot",
+                                        text = KatedaL10n.get("current_slot", userProfile.languageCode),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -1000,7 +1017,7 @@ fun RemindersAndHistoryScreen(
                                     contentColor = MaterialTheme.colorScheme.onSurface
                                 )
                             ) {
-                                Text(if (showTimeEdit) "Collapse" else "Modify Time")
+                                Text(if (showTimeEdit) (if (userProfile.languageCode == "ID") "Tutup" else "Collapse") else (if (userProfile.languageCode == "ID") "Ubah Waktu" else "Modify Time"))
                             }
                         }
 
@@ -1061,7 +1078,7 @@ fun RemindersAndHistoryScreen(
                         }
                     } else {
                         Text(
-                            text = "Daily reminders are currently silent.",
+                            text = KatedaL10n.get("reminders_silent", userProfile.languageCode),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1089,13 +1106,13 @@ fun RemindersAndHistoryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Exercise Circulation Log",
+                    text = KatedaL10n.get("exercise_log", userProfile.languageCode),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "${allCompletedExercises.size} logged",
+                    text = "${allCompletedExercises.size} " + KatedaL10n.get("logged", userProfile.languageCode),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1115,7 +1132,7 @@ fun RemindersAndHistoryScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No completed martial routines logged yet.\nHead over to the Exercises tab and finish a session!",
+                            text = KatedaL10n.get("no_routines_logged", userProfile.languageCode),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1150,7 +1167,7 @@ fun RemindersAndHistoryScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "$dateFormatted | ${log.durationMinutes} mins | ${log.levelRequired}",
+                                text = "$dateFormatted | ${log.durationMinutes} " + KatedaL10n.get("mins", userProfile.languageCode) + " | ${log.levelRequired}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1183,7 +1200,7 @@ fun RemindersAndHistoryScreen(
         // Section 3: Daily Steps History
         item {
             Text(
-                text = "Steps Distribution Log",
+                text = KatedaL10n.get("steps_log", userProfile.languageCode),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -1204,7 +1221,7 @@ fun RemindersAndHistoryScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No history logged yet.",
+                            text = KatedaL10n.get("no_history_logged", userProfile.languageCode),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1238,7 +1255,7 @@ fun RemindersAndHistoryScreen(
                             )
                         }
                         Text(
-                            text = String.format("%,d steps", step.steps),
+                            text = String.format(if (userProfile.languageCode == "ID") "%,d langkah" else "%,d steps", step.steps),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (step.steps >= userProfile.dailyStepGoal) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
@@ -1251,7 +1268,7 @@ fun RemindersAndHistoryScreen(
         // Section 4: BMI Track Records
         item {
             Text(
-                text = "Historic Body Mass Index checks",
+                text = KatedaL10n.get("historic_bmi", userProfile.languageCode),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -1272,7 +1289,7 @@ fun RemindersAndHistoryScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No weight log entries yet.",
+                            text = KatedaL10n.get("no_weight_log", userProfile.languageCode),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1302,7 +1319,7 @@ fun RemindersAndHistoryScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Stats: ${record.weightKg} kg / ${record.heightCm} cm",
+                                text = KatedaL10n.get("stats", userProfile.languageCode) + ": ${record.weightKg} kg / ${record.heightCm} cm",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1340,7 +1357,7 @@ fun RemindersAndHistoryScreen(
 fun UserProfileDialog(
     userProfile: com.example.data.UserProfile,
     onDismiss: () -> Unit,
-    onSave: (name: String, level: String, height: Double, weight: Double, stepGoal: Int) -> Unit,
+    onSave: (name: String, level: String, height: Double, weight: Double, stepGoal: Int, languageCode: String) -> Unit,
     levels: List<String>
 ) {
     var name by remember { mutableStateOf(userProfile.name) }
@@ -1350,6 +1367,7 @@ fun UserProfileDialog(
     var heightInput by remember { mutableStateOf(userProfile.heightCm.toString()) }
     var weightInput by remember { mutableStateOf(userProfile.weightKg.toString()) }
     var stepGoalInput by remember { mutableStateOf(userProfile.dailyStepGoal.toString()) }
+    var selectedLanguageCode by remember { mutableStateOf(userProfile.languageCode) }
 
     var validationErrorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -1370,7 +1388,7 @@ fun UserProfileDialog(
             ) {
                 item {
                     Text(
-                        text = "Edit Keep Fit Profile",
+                        text = KatedaL10n.get("edit_profile_title", userProfile.languageCode),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.primary,
@@ -1382,7 +1400,7 @@ fun UserProfileDialog(
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("Practitioner Name") },
+                        label = { Text(if (userProfile.languageCode == "ID") "Nama Praktisi" else "Practitioner Name") },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1393,7 +1411,7 @@ fun UserProfileDialog(
                 // Level Selector Dropdown using M3 ExposedDropdownMenu style or basic custom Box selector
                 item {
                     Text(
-                        text = "Select Kateda Health Level:",
+                        text = KatedaL10n.get("select_level", userProfile.languageCode),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold
@@ -1466,7 +1484,7 @@ fun UserProfileDialog(
                         OutlinedTextField(
                             value = heightInput,
                             onValueChange = { heightInput = it },
-                            label = { Text("Height (cm)") },
+                            label = { Text(if (userProfile.languageCode == "ID") "Tinggi Badan (cm)" else "Height (cm)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
                             modifier = Modifier
@@ -1476,7 +1494,7 @@ fun UserProfileDialog(
                         OutlinedTextField(
                             value = weightInput,
                             onValueChange = { weightInput = it },
-                            label = { Text("Weight (kg)") },
+                            label = { Text(if (userProfile.languageCode == "ID") "Berat Badan (kg)" else "Weight (kg)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
                             modifier = Modifier
@@ -1490,13 +1508,88 @@ fun UserProfileDialog(
                     OutlinedTextField(
                         value = stepGoalInput,
                         onValueChange = { stepGoalInput = it },
-                        label = { Text("Daily Step Circulation Goal") },
+                        label = { Text(if (userProfile.languageCode == "ID") "Target Sirkulasi Langkah Harian" else "Daily Step Circulation Goal") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("profile_steps_goal_input")
                     )
+                }
+
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = KatedaL10n.get("voice_lang", userProfile.languageCode),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            // English Selection Card
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { selectedLanguageCode = "EN" }
+                                    .testTag("language_option_en"),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (selectedLanguageCode == "EN") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (selectedLanguageCode == "EN") MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "🇬🇧 English (EN)",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (selectedLanguageCode == "EN") FontWeight.Bold else FontWeight.Normal,
+                                        color = if (selectedLanguageCode == "EN") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+
+                            // Indonesian Selection Card
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { selectedLanguageCode = "ID" }
+                                    .testTag("language_option_id"),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (selectedLanguageCode == "ID") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (selectedLanguageCode == "ID") MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "🇮🇩 Indonesia (ID)",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (selectedLanguageCode == "ID") FontWeight.Bold else FontWeight.Normal,
+                                        color = if (selectedLanguageCode == "ID") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 validationErrorMessage?.let { err ->
@@ -1522,7 +1615,7 @@ fun UserProfileDialog(
                             onClick = onDismiss,
                             modifier = Modifier.testTag("dismiss_profile_button")
                         ) {
-                            Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(if (userProfile.languageCode == "ID") "Batal" else "Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
@@ -1532,21 +1625,21 @@ fun UserProfileDialog(
                                 val goal = stepGoalInput.toIntOrNull()
 
                                 if (name.trim().isEmpty()) {
-                                    validationErrorMessage = "Practitioner name cannot be empty."
+                                    validationErrorMessage = if (userProfile.languageCode == "ID") "Nama praktisi tidak boleh kosong." else "Practitioner name cannot be empty."
                                 } else if (h == null || h <= 50.0 || h >= 260.0) {
-                                    validationErrorMessage = "Please enter height between 50cm and 260cm."
+                                    validationErrorMessage = if (userProfile.languageCode == "ID") "Harap masukkan tinggi badan antara 50cm dan 260cm." else "Please enter height between 50cm and 260cm."
                                 } else if (w == null || w <= 10.0 || w >= 300.0) {
-                                    validationErrorMessage = "Please enter weight between 10kg and 300kg."
+                                    validationErrorMessage = if (userProfile.languageCode == "ID") "Harap masukkan berat badan antara 10kg dan 300kg." else "Please enter weight between 10kg and 300kg."
                                 } else if (goal == null || goal <= 0) {
-                                    validationErrorMessage = "Please enter valid walk step goal."
+                                    validationErrorMessage = if (userProfile.languageCode == "ID") "Harap masukkan target jumlah langkah kaki harian yang valid." else "Please enter valid walk step goal."
                                 } else {
-                                    onSave(name.trim(), selectedLevel, h, w, goal)
+                                    onSave(name.trim(), selectedLevel, h, w, goal, selectedLanguageCode)
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             modifier = Modifier.testTag("save_profile_button")
                         ) {
-                            Text("Apply Changes", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text(if (userProfile.languageCode == "ID") "Simpan" else "Apply Changes", color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1829,6 +1922,7 @@ fun ExerciseTutorialCard(
 @Composable
 fun WorkoutTimerDialog(
     routine: HealthRoutine,
+    languageCode: String,
     onDismiss: () -> Unit,
     onComplete: (durationMinutes: Int, caloriesBurned: Int) -> Unit
 ) {
@@ -1876,9 +1970,14 @@ fun WorkoutTimerDialog(
             if (status == TextToSpeech.SUCCESS) {
                 isTtsReady = true
                 try {
-                    instance?.language = Locale.ENGLISH
+                    val locale = if (languageCode == "ID") Locale("id", "ID") else Locale.ENGLISH
+                    val result = instance?.setLanguage(locale)
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        Log.e("KeepFitTTS", "Selected locale not supported, backing up to English")
+                        instance?.language = Locale.ENGLISH
+                    }
                 } catch (e: Exception) {
-                    Log.e("KeepFitTTS", "Failed to set US Locale: ${e.message}")
+                    Log.e("KeepFitTTS", "Failed to set TTS Locale: ${e.message}")
                 }
                 instance?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {
@@ -1922,11 +2021,29 @@ fun WorkoutTimerDialog(
     LaunchedEffect(currentPhase, currentLoop, isTimerRunning) {
         if (isTimerRunning) {
             val announcement = when (currentPhase) {
-                "INHALE" -> if (currentLoop > 1) "Cycle $currentLoop. Inhale through your nose." else "Inhale through your nose."
-                "HOLD" -> "Hold your breath."
-                "EXHALE" -> "Exhale slowly."
-                "REST" -> "Rest."
-                "HOLD_POSTURE" -> if (currentLoop > 1) "Cycle $currentLoop. Hold posture stance." else "Hold posture stance."
+                "INHALE" -> {
+                    if (languageCode == "ID") {
+                        if (currentLoop > 1) "Putaran $currentLoop. Tarik napas." else "Tarik napas."
+                    } else {
+                        if (currentLoop > 1) "Cycle $currentLoop. Inhale." else "Inhale."
+                    }
+                }
+                "HOLD" -> {
+                    if (languageCode == "ID") "Tahan." else "Hold."
+                }
+                "EXHALE" -> {
+                    if (languageCode == "ID") "Hembuskan." else "Exhale."
+                }
+                "REST" -> {
+                    if (languageCode == "ID") "Istirahat." else "Rest."
+                }
+                "HOLD_POSTURE" -> {
+                    if (languageCode == "ID") {
+                        if (currentLoop > 1) "Putaran $currentLoop. Tahan." else "Tahan."
+                    } else {
+                        if (currentLoop > 1) "Cycle $currentLoop. Hold." else "Hold."
+                    }
+                }
                 else -> ""
             }
             if (announcement.isNotEmpty()) {
@@ -1938,7 +2055,8 @@ fun WorkoutTimerDialog(
     // Voice announcement trigger when session finishes or when starting
     LaunchedEffect(dialogState) {
         if (dialogState == "COMPLETED") {
-            speakText("Practice complete. Outstanding work!")
+            val endMsg = if (languageCode == "ID") "Latihan selesai. Kerja bagus!" else "Practice complete. Outstanding work!"
+            speakText(endMsg)
         }
     }
 
@@ -2184,7 +2302,11 @@ fun WorkoutTimerDialog(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = if (isBreathing) "Kateda Dynamic Breathwork Timer" else "Kateda Posture Hold Timer",
+                            text = if (languageCode == "ID") {
+                                if (isBreathing) "Pengukur Waktu Pernapasan Dinamis Kateda" else "Pengukur Waktu Sikap Tubuh Kateda"
+                            } else {
+                                if (isBreathing) "Kateda Dynamic Breathwork Timer" else "Kateda Posture Hold Timer"
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -2206,7 +2328,7 @@ fun WorkoutTimerDialog(
                 when (dialogState) {
                     "CONFIG" -> {
                         Text(
-                            text = "Configure Practice Flow",
+                            text = if (languageCode == "ID") "Konfigurasi Sesi Latihan" else "Configure Practice Flow",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2221,38 +2343,38 @@ fun WorkoutTimerDialog(
                         ) {
                             if (isBreathing) {
                                 TimerSettingRow(
-                                    label = "Inhale (Breathe In)",
+                                    label = if (languageCode == "ID") "Tarik Napas" else "Inhale (Breathe In)",
                                     seconds = inhaleSec,
                                     onSecondsChanged = { inhaleSec = it.coerceIn(2, 12) },
                                     color = Color(0xFF64B5F6)
                                 )
                                 TimerSettingRow(
-                                    label = "Hold (Abs Compacted)",
+                                    label = if (languageCode == "ID") "Tahan Napas (Tekan Perut)" else "Hold (Abs Compacted)",
                                     seconds = holdSec,
                                     onSecondsChanged = { holdSec = it.coerceIn(0, 10) },
                                     color = Color(0xFFFFD54F)
                                 )
                                 TimerSettingRow(
-                                    label = "Exhale (Breathe Out)",
+                                    label = if (languageCode == "ID") "Hembuskan Napas" else "Exhale (Breathe Out)",
                                     seconds = exhaleSec,
                                     onSecondsChanged = { exhaleSec = it.coerceIn(2, 12) },
                                     color = Color(0xFFFF8A65)
                                 )
                                 TimerSettingRow(
-                                    label = "Rest/Recovery Phase",
+                                    label = if (languageCode == "ID") "Fase Istirahat" else "Rest/Recovery Phase",
                                     seconds = restSec,
                                     onSecondsChanged = { restSec = it.coerceIn(0, 10) },
                                     color = Color(0xFF80CBC4)
                                 )
                             } else {
                                 TimerSettingRow(
-                                    label = "Hold Posture / Stance",
+                                    label = if (languageCode == "ID") "Tahan Sikap / Kuda-Kuda" else "Hold Posture / Stance",
                                     seconds = holdPostureSec,
                                     onSecondsChanged = { holdPostureSec = it.coerceIn(5, 120) },
                                     color = Color(0xFFE57373)
                                 )
                                 TimerSettingRow(
-                                    label = "Rest/Recovery Between Holds",
+                                    label = if (languageCode == "ID") "Istirahat Antara Sikap" else "Rest/Recovery Between Holds",
                                     seconds = restSec,
                                     onSecondsChanged = { restSec = it.coerceIn(0, 30) },
                                     color = Color(0xFF80CBC4)
@@ -2260,11 +2382,11 @@ fun WorkoutTimerDialog(
                             }
 
                             TimerSettingRow(
-                                label = "Cycles/Loops Sequence",
+                                label = if (languageCode == "ID") "Jumlah Putaran Latihan" else "Cycles/Loops Sequence",
                                 seconds = totalLoops,
                                 onSecondsChanged = { totalLoops = it.coerceIn(1, 15) },
                                 color = MaterialTheme.colorScheme.primary,
-                                unitLabel = "Loops"
+                                unitLabel = if (languageCode == "ID") "Putaran" else "Loops"
                             )
                         }
 
@@ -2301,13 +2423,13 @@ fun WorkoutTimerDialog(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "Vocal Guide",
+                                            text = if (languageCode == "ID") "Panduan Suara" else "Vocal Guide",
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = "TTS voice commands",
+                                            text = if (languageCode == "ID") "Perintah suara TTS" else "TTS voice commands",
                                             style = MaterialTheme.typography.bodySmall,
                                             fontSize = 9.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2346,13 +2468,13 @@ fun WorkoutTimerDialog(
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = "Lung Wave",
+                                                text = if (languageCode == "ID") "Gelombang Paru" else "Lung Wave",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = "Breathing audio wind",
+                                                text = if (languageCode == "ID") "Deru angin pernapasan" else "Breathing audio wind",
                                                 style = MaterialTheme.typography.bodySmall,
                                                 fontSize = 9.sp,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2394,7 +2516,7 @@ fun WorkoutTimerDialog(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Total Session Duration",
+                                        text = if (languageCode == "ID") "Total Durasi Sesi" else "Total Session Duration",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
@@ -2418,7 +2540,8 @@ fun WorkoutTimerDialog(
                                 phaseSecondsRemaining = if (isBreathing) inhaleSec else holdPostureSec
                                 totalSecondsElapsed = 0
                                 isTimerRunning = true
-                                speakText("Begin practice. Expand your body.")
+                                val startMsg = if (languageCode == "ID") "Mulai latihan. Regangkan tubuh Anda." else "Begin practice. Expand your body."
+                                speakText(startMsg)
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2430,7 +2553,7 @@ fun WorkoutTimerDialog(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
-                                text = "BEGIN GUIDED PRACTICE",
+                                text = if (languageCode == "ID") "MULAI SESI LATIHAN" else "BEGIN GUIDED PRACTICE",
                                 color = Color.Black,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.sp
@@ -2441,12 +2564,12 @@ fun WorkoutTimerDialog(
                     "RUNNING", "PAUSED" -> {
                         // Current Phase Settings for Color scheme
                         val (phaseColor, phaseDescription) = when (currentPhase) {
-                            "INHALE" -> Color(0xFF64B5F6) to "Deeply inhale through nostrils, expanding lower abdomen."
-                            "HOLD" -> Color(0xFFFFD54F) to "Hold breath. Secure core abdominal compaction."
-                            "EXHALE" -> Color(0xFFFF8A65) to "Slowly exhale, pushing tension down and out."
-                            "REST" -> Color(0xFF80CBC4) to "Relax all muscles. Recalibrating natural breathing wave."
-                            "HOLD_POSTURE" -> Color(0xFFE57373) to "Engage posture with rigid balance. Hold still."
-                            else -> MaterialTheme.colorScheme.primary to "Maintain concentration."
+                            "INHALE" -> Color(0xFF64B5F6) to (if (languageCode == "ID") "Tarik napas dalam-dalam lewat hidung, kembangkan perut bagian bawah." else "Deeply inhale through nostrils, expanding lower abdomen.")
+                            "HOLD" -> Color(0xFFFFD54F) to (if (languageCode == "ID") "Tahan napas. Kunci pemadatan perut inti." else "Hold breath. Secure core abdominal compaction.")
+                            "EXHALE" -> Color(0xFFFF8A65) to (if (languageCode == "ID") "Hembuskan napas perlahan, tekan ketegangan ke bawah dan luar." else "Slowly exhale, pushing tension down and out.")
+                            "REST" -> Color(0xFF80CBC4) to (if (languageCode == "ID") "Rilekskan semua otot. Kalibrasi kembali aliran napas alami." else "Relax all muscles. Recalibrating natural breathing wave.")
+                            "HOLD_POSTURE" -> Color(0xFFE57373) to (if (languageCode == "ID") "Sikap tegak dengan keseimbangan kokoh. Diam jangan bergerak." else "Engage posture with rigid balance. Hold still.")
+                            else -> MaterialTheme.colorScheme.primary to (if (languageCode == "ID") "Pertahankan konsentrasi." else "Maintain concentration.")
                         }
 
                         val maxPhaseSeconds = when (currentPhase) {
@@ -2521,7 +2644,8 @@ fun WorkoutTimerDialog(
                                         .clickable { 
                                             enableVoice = !enableVoice 
                                             if (enableVoice) {
-                                                speakText("Speech guide active.")
+                                                val guideMsg = if (languageCode == "ID") "Panduan suara aktif." else "Speech guide active."
+                                                speakText(guideMsg)
                                             }
                                         }
                                         .background(if (enableVoice) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Gray.copy(alpha = 0.1f))
@@ -2959,4 +3083,77 @@ fun formatDuration(seconds: Int): String {
     val m = seconds / 60
     val s = seconds % 60
     return if (m > 0) "${m}m ${s}s" else "${s}s"
+}
+
+object KatedaL10n {
+    fun get(key: String, lang: String): String {
+        val entry = translations[key] ?: return key
+        return entry[lang] ?: entry["EN"] ?: key
+    }
+
+    private val translations = mapOf(
+        "app_subtitle" to mapOf("EN" to "A subsidiary of Kateda", "ID" to "Anak perusahaan Kateda"),
+        "tab_dashboard" to mapOf("EN" to "Dashboard", "ID" to "Dasbor"),
+        "tab_exercises" to mapOf("EN" to "Exercises", "ID" to "Latihan"),
+        "tab_reminder_logs" to mapOf("EN" to "Reminder & Logs", "ID" to "Alarm & Catatan"),
+        "greetings" to mapOf("EN" to "Greetings", "ID" to "Salam"),
+        "level" to mapOf("EN" to "Level", "ID" to "Tingkatan"),
+        "sub_agency" to mapOf("EN" to "Subsidiary of Kateda Central Energy", "ID" to "Afiliasi Energi Pusat Kateda"),
+        "daily_steps" to mapOf("EN" to "Daily Steps Circulation", "ID" to "Sirkulasi Langkah Harian"),
+        "goal" to mapOf("EN" to "Goal", "ID" to "Target"),
+        "completed_percentage" to mapOf("EN" to "completed", "ID" to "selesai"),
+        "calibrate" to mapOf("EN" to "Calibrate Walk Steps Log", "ID" to "Kalibrasi Langkah"),
+        "valid_steps_err" to mapOf("EN" to "Please enter standard positive digits for steps", "ID" to "Harap masukkan langkah yang valid"),
+        "bmi_alignment" to mapOf("EN" to "BMI & Weight Alignment", "ID" to "Penyelarasan Berat Badan & BMI"),
+        "current_weight" to mapOf("EN" to "Current Weight", "ID" to "Berat Badan"),
+        "current_height" to mapOf("EN" to "Current Height", "ID" to "Tinggi Badan"),
+        "bmi_index" to mapOf("EN" to "Body Mass Index (BMI)", "ID" to "Indeks Massa Tubuh (BMI)"),
+        "diagnostic" to mapOf("EN" to "Kateda Energy Diagnostic", "ID" to "Diagnosis Energi Kateda"),
+        "valid_weight_err" to mapOf("EN" to "Please enter valid weight between 20kg and 300kg", "ID" to "Harap masukkan berat antara 20kg & 300kg"),
+        "fitness_flows" to mapOf("EN" to "Kateda Subsidiary Fitness Flows", "ID" to "Sirkulasi Aliran Latihan Kateda"),
+        "no_exercise_level" to mapOf("EN" to "No customized physical exercises found for this level.\nTry choosing a different martial art level in your profile settings.", "ID" to "Tidak ada latihan fisik yang disesuaikan untuk tingkat ini.\nCoba pilih tingkat seni bela diri yang berbeda di pengaturan profil."),
+        "mins" to mapOf("EN" to "mins", "ID" to "menit"),
+        "coordinated_movs" to mapOf("EN" to "Coordinated Movements:", "ID" to "Kombinasi Gerakan:"),
+        "start_guided" to mapOf("EN" to "Start Guided Practice Timer", "ID" to "Mulai Sesi Latihan"),
+        "quick_log" to mapOf("EN" to "Quick Log Practice Finish", "ID" to "Catat Selesai Cepat"),
+        "dismiss" to mapOf("EN" to "DISMISS", "ID" to "BATAL"),
+        "daily_reminder" to mapOf("EN" to "Daily Physical Reminder", "ID" to "Pengingat Latihan Harian"),
+        "set_alerts" to mapOf("EN" to "Set alerts for martial breathing routines", "ID" to "Atur waktu pengingat latihan pernapasan harian"),
+        "current_slot" to mapOf("EN" to "Current Alert Slot", "ID" to "Jadwal Alarm Aktif"),
+        "reminders_silent" to mapOf("EN" to "Daily reminders are currently silent.", "ID" to "Jadwal pengingat harian saat ini kosong."),
+        "exercise_log" to mapOf("EN" to "Exercise Circulation Log", "ID" to "Catatan Distribusi Latihan"),
+        "logged" to mapOf("EN" to "logged", "ID" to "tercatat"),
+        "no_routines_logged" to mapOf("EN" to "No completed martial routines logged yet.\nHead over to the Exercises tab and finish a session!", "ID" to "Kamu belum mencatat latihan apa pun.\nMulai latihan Anda dari tab Latihan!"),
+        "steps_log" to mapOf("EN" to "Steps Distribution Log", "ID" to "Catatan Sirkulasi Langkah"),
+        "no_history_logged" to mapOf("EN" to "No history logged yet.", "ID" to "Belum ada catatan."),
+        "historic_bmi" to mapOf("EN" to "Historic Body Mass Index checks", "ID" to "Pemeriksaan Indeks Massa Tubuh"),
+        "no_weight_log" to mapOf("EN" to "No weight log entries yet.", "ID" to "Belum ada catatan berat."),
+        "stats" to mapOf("EN" to "Stats", "ID" to "Statistik"),
+        "edit_profile_title" to mapOf("EN" to "Edit Keep Fit Profile", "ID" to "Ubah Profil Keep Fit"),
+        "select_level" to mapOf("EN" to "Select Kateda Health Level:", "ID" to "Pilih Tingkatan Kesehatan Kateda:"),
+        "voice_lang" to mapOf("EN" to "Vocal Command Language (TTS):", "ID" to "Bahasa Panduan Suara (TTS):"),
+        "tech_guide_title" to mapOf("EN" to "Technique Video & Alignment Guide", "ID" to "Panduan Aliran & Gerakan"),
+        "ref_photo" to mapOf("EN" to "Reference Photo/Video", "ID" to "Referensi Teknik/Gerakan"),
+        "est_flow" to mapOf("EN" to "Estimated Flow", "ID" to "Estimasi Durasi"),
+        "target_level" to mapOf("EN" to "Target Level", "ID" to "Tingkatan Target"),
+        "sim_loop" to mapOf("EN" to "Simulated Loop:", "ID" to "Animasi Gerakan:"),
+        "watch_tutorial" to mapOf("EN" to "Watch Tutorial", "ID" to "Tonton Tutorial"),
+        "config_practice" to mapOf("EN" to "Configure Practice Flow", "ID" to "Konfigurasi Sesi Latihan"),
+        "vocal_guide" to mapOf("EN" to "Vocal Guide", "ID" to "Panduan Suara"),
+        "tts_commands" to mapOf("EN" to "TTS voice commands", "ID" to "Perintah suara"),
+        "lung_wave" to mapOf("EN" to "Lung Wave", "ID" to "Gelombang Paru"),
+        "breathing_wind" to mapOf("EN" to "Breathing audio wind", "ID" to "Efek napas udara"),
+        "tot_duration" to mapOf("EN" to "Total Session Duration", "ID" to "Total Durasi Latihan"),
+        "begin_guided" to mapOf("EN" to "BEGIN GUIDED PRACTICE", "ID" to "MULAI LATIHAN"),
+        "cycle_of" to mapOf("EN" to "CYCLE", "ID" to "PUTARAN"),
+        "cycle_of_connector" to mapOf("EN" to "OF", "ID" to "DARI"),
+        "total_elapsed" to mapOf("EN" to "Total elapsed", "ID" to "Total waktu"),
+        "flow_completed" to mapOf("EN" to "Kateda Flow Completed!", "ID" to "Latihan Kateda Selesai!"),
+        "flow_completed_desc" to mapOf("EN" to "Your physical vessels are oxygenated and central energy has been harmonized.", "ID" to "Aliran darah Anda telah teroksigenasi, serta energi inti tubuh Anda telah selaras."),
+        "time_spent" to mapOf("EN" to "TIME SPENT", "ID" to "DURASI"),
+        "est_burn" to mapOf("EN" to "ESTIMATED BURN", "ID" to "ESTIMASI KALORI"),
+        "cycles_done" to mapOf("EN" to "CYCLES DONE", "ID" to "PUTARAN SELESAI"),
+        "save_practice" to mapOf("EN" to "SAVE PRACTICE TO DIARY", "ID" to "SIMPAN LATIHAN"),
+        "close_no_log" to mapOf("EN" to "Close without logging", "ID" to "Tutup tanpa menyimpan")
+    )
 }

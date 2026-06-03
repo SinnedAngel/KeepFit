@@ -13,7 +13,8 @@ data class UserProfile(
     val dailyStepGoal: Int = 8000,
     val reminderHour: Int = 8,
     val reminderMinute: Int = 0,
-    val reminderEnabled: Boolean = true
+    val reminderEnabled: Boolean = true,
+    val languageCode: String = "EN"
 ) {
     val bmi: Double
         get() = if (heightCm > 0) weightKg / ((heightCm / 100.0) * (heightCm / 100.0)) else 0.0

@@ -219,7 +219,7 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Actions
-    fun updateProfile(name: String, level: String, height: Double, weight: Double, stepGoal: Int) {
+    fun updateProfile(name: String, level: String, height: Double, weight: Double, stepGoal: Int, languageCode: String) {
         viewModelScope.launch {
             val current = userProfile.value
             val updated = current.copy(
@@ -227,7 +227,8 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
                 KatedaLevel = level,
                 heightCm = height,
                 weightKg = weight,
-                dailyStepGoal = stepGoal
+                dailyStepGoal = stepGoal,
+                languageCode = languageCode
             )
             repository.saveUserProfile(updated)
             // Automatically record an updated BMI log entry as well

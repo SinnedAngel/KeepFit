@@ -12,7 +12,7 @@ import androidx.room.RoomDatabase
         BmiRecord::class,
         CompletedExercise::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class KeepFitDatabase : RoomDatabase() {
