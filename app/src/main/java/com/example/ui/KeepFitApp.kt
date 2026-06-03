@@ -1852,6 +1852,8 @@ fun WorkoutTimerDialog(
     // Sound customization states
     var enableVoice by remember { mutableStateOf(true) }
     var enableAmbientSound by remember { mutableStateOf(true) }
+    var isVoiceSpeaking by remember { mutableStateOf(false) }
+    var voiceStartMillis by remember { mutableLongStateOf(0L) }
 
     // Dialog state: "CONFIG", "RUNNING", "PAUSED", "COMPLETED"
     var dialogState by remember { mutableStateOf("CONFIG") }
@@ -1878,6 +1880,18 @@ fun WorkoutTimerDialog(
                 } catch (e: Exception) {
                     Log.e("KeepFitTTS", "Failed to set US Locale: ${e.message}")
                 }
+                instance?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {
+                        isVoiceSpeaking = true
+                    }
+                    override fun onDone(utteranceId: String?) {
+                        isVoiceSpeaking = false
+                    }
+                    @Deprecated("Deprecated in Java", ReplaceWith("isVoiceSpeaking = false"))
+                    override fun onError(utteranceId: String?) {
+                        isVoiceSpeaking = false
+                    }
+                })
             }
         }
         tts = instance
@@ -1891,10 +1905,16 @@ fun WorkoutTimerDialog(
     fun speakText(text: String) {
         if (enableVoice && isTtsReady) {
             try {
-                tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
+                isVoiceSpeaking = true
+                voiceStartMillis = System.currentTimeMillis()
+                val utteranceId = java.util.UUID.randomUUID().toString()
+                tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
             } catch (e: Exception) {
                 Log.e("KeepFitTTS", "Speech delivery error: ${e.message}")
+                isVoiceSpeaking = false
             }
+        } else {
+            isVoiceSpeaking = false
         }
     }
 
@@ -1974,7 +1994,11 @@ fun WorkoutTimerDialog(
                         remaining / maxPhaseSeconds.coerceAtLeast(1)
                     }
 
-                    val envelope = kotlin.math.sin(progressRatio.coerceIn(0f, 1f) * Math.PI.toFloat())
+                    val envelope = if (enableVoice && isVoiceSpeaking) {
+                        0f
+                    } else {
+                        kotlin.math.sin(progressRatio.coerceIn(0f, 1f) * Math.PI.toFloat())
+                    }
 
                     // Low-pass filter coefficient for airflow sound (Inhale is sharper, Exhale is deeper/warmer)
                     val fc = if (currentPhase == "INHALE") 0.35f else 0.22f
@@ -2017,11 +2041,32 @@ fun WorkoutTimerDialog(
         }
     }
 
+    // Handle stopping voice/TTS if timer is paused
+    LaunchedEffect(isTimerRunning) {
+        if (!isTimerRunning) {
+            try {
+                tts?.stop()
+                isVoiceSpeaking = false
+            } catch (e: Exception) {
+                // Fail-safe
+            }
+        }
+    }
+
     // Timer Effect
     LaunchedEffect(isTimerRunning) {
         if (isTimerRunning) {
             while (isTimerRunning && phaseSecondsRemaining > 0) {
+                val now = System.currentTimeMillis()
+                if (enableVoice && isVoiceSpeaking && (now - voiceStartMillis < 10000L)) {
+                    kotlinx.coroutines.delay(100)
+                    continue
+                }
                 kotlinx.coroutines.delay(1000)
+                val nowAfterDelay = System.currentTimeMillis()
+                if (enableVoice && isVoiceSpeaking && (nowAfterDelay - voiceStartMillis < 10000L)) {
+                    continue
+                }
                 totalSecondsElapsed++
                 phaseSecondsRemaining--
                 
