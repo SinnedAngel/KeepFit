@@ -607,6 +607,7 @@ fun WorkoutsScreen(
     val recommendedRoutines by viewModel.recommendedRoutines.collectAsStateWithLifecycle()
     var activeExpandedRoutineId by remember { mutableStateOf<String?>(null) }
     var celebrationMessage by remember { mutableStateOf<String?>(null) }
+    var activeTimerRoutine by remember { mutableStateOf<HealthRoutine?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -779,6 +780,33 @@ fun WorkoutsScreen(
 
                                     Button(
                                         onClick = {
+                                            activeTimerRoutine = routine
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("start_timer_workout_${routine.id}"),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Guided session icon",
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Start Guided Practice Timer",
+                                            color = Color.Black,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    OutlinedButton(
+                                        onClick = {
                                             viewModel.trackCompletedWorkout(routine)
                                             // trigger a delight feedback
                                             celebrationMessage = "Central Energy Logged! You've accomplished '${routine.name}' (+${routine.caloriesBurned} kcal)"
@@ -786,13 +814,11 @@ fun WorkoutsScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .testTag("complete_workout_${routine.id}"),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary
-                                        )
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                                     ) {
                                         Text(
-                                            text = "Complete This Exercise Flow",
-                                            color = Color.Black,
+                                            text = "Quick Log Practice Finish",
+                                            color = MaterialTheme.colorScheme.primary,
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
@@ -844,6 +870,23 @@ fun WorkoutsScreen(
                     )
                 }
             }
+        }
+
+        if (activeTimerRoutine != null) {
+            WorkoutTimerDialog(
+                routine = activeTimerRoutine!!,
+                onDismiss = { activeTimerRoutine = null },
+                onComplete = { customDuration, customCalories ->
+                    viewModel.trackCustomCompletedWorkout(
+                        name = activeTimerRoutine!!.name,
+                        level = activeTimerRoutine!!.levelRequired,
+                        durationMinutes = customDuration,
+                        caloriesBurned = customCalories
+                    )
+                    celebrationMessage = "Guided Flow Finished! Logged '${activeTimerRoutine!!.name}' (+${customCalories} kcal, ${customDuration}m)"
+                    activeTimerRoutine = null
+                }
+            )
         }
     }
 }
@@ -1771,4 +1814,781 @@ fun ExerciseTutorialCard(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WorkoutTimerDialog(
+    routine: HealthRoutine,
+    onDismiss: () -> Unit,
+    onComplete: (durationMinutes: Int, caloriesBurned: Int) -> Unit
+) {
+    val isBreathing = routine.id.contains("breath") || 
+            routine.id.contains("oxygen") || 
+            routine.id.contains("healing") || 
+            routine.id.contains("compaction") ||
+            routine.name.lowercase().contains("breath")
+
+    // Configuration States
+    var inhaleSec by remember { mutableIntStateOf(if (routine.id == "harmonizing_breath") 4 else 5) }
+    var holdSec by remember { mutableIntStateOf(if (routine.id == "harmonizing_breath") 2 else if (routine.id == "cell_oxygenation") 10 else 3) }
+    var exhaleSec by remember { mutableIntStateOf(if (routine.id == "harmonizing_breath") 6 else 5) }
+    var restSec by remember { mutableIntStateOf(if (isBreathing) 2 else 5) }
+    
+    // For posture/stances
+    var holdPostureSec by remember { mutableIntStateOf(if (routine.id == "sikap_basic") 30 else 45) }
+    
+    var totalLoops by remember { mutableIntStateOf(if (isBreathing) 5 else 3) }
+
+    // Dialog state: "CONFIG", "RUNNING", "PAUSED", "COMPLETED"
+    var dialogState by remember { mutableStateOf("CONFIG") }
+    
+    // Active Timer States
+    var currentLoop by remember { mutableIntStateOf(1) }
+    var currentPhase by remember { mutableStateOf(if (isBreathing) "INHALE" else "HOLD_POSTURE") }
+    var phaseSecondsRemaining by remember { mutableIntStateOf(0) }
+    var totalSecondsElapsed by remember { mutableIntStateOf(0) }
+    var isTimerRunning by remember { mutableStateOf(false) }
+
+    // Calculate dynamic values for completion screen
+    val totalEstimatedSeconds = remember(isBreathing, inhaleSec, holdSec, exhaleSec, restSec, holdPostureSec, totalLoops) {
+        if (isBreathing) {
+            (inhaleSec + holdSec + exhaleSec + restSec) * totalLoops
+        } else {
+            (holdPostureSec + restSec) * totalLoops
+        }
+    }
+
+    // Timer Effect
+    LaunchedEffect(isTimerRunning, currentPhase, phaseSecondsRemaining) {
+        if (isTimerRunning && phaseSecondsRemaining > 0) {
+            while (isTimerRunning && phaseSecondsRemaining > 0) {
+                kotlinx.coroutines.delay(1000)
+                totalSecondsElapsed++
+                phaseSecondsRemaining--
+                
+                if (phaseSecondsRemaining == 0) {
+                    // Transition phase
+                    if (isBreathing) {
+                        when (currentPhase) {
+                            "INHALE" -> {
+                                if (holdSec > 0) {
+                                    currentPhase = "HOLD"
+                                    phaseSecondsRemaining = holdSec
+                                } else {
+                                    currentPhase = "EXHALE"
+                                    phaseSecondsRemaining = exhaleSec
+                                }
+                            }
+                            "HOLD" -> {
+                                currentPhase = "EXHALE"
+                                phaseSecondsRemaining = exhaleSec
+                            }
+                            "EXHALE" -> {
+                                if (restSec > 0) {
+                                    currentPhase = "REST"
+                                    phaseSecondsRemaining = restSec
+                                } else {
+                                    if (currentLoop < totalLoops) {
+                                        currentLoop++
+                                        currentPhase = "INHALE"
+                                        phaseSecondsRemaining = inhaleSec
+                                    } else {
+                                        isTimerRunning = false
+                                        dialogState = "COMPLETED"
+                                    }
+                                }
+                            }
+                            "REST" -> {
+                                if (currentLoop < totalLoops) {
+                                    currentLoop++
+                                    currentPhase = "INHALE"
+                                    phaseSecondsRemaining = inhaleSec
+                                } else {
+                                    isTimerRunning = false
+                                    dialogState = "COMPLETED"
+                                }
+                            }
+                        }
+                    } else {
+                        // Posture holds
+                        when (currentPhase) {
+                            "HOLD_POSTURE" -> {
+                                if (restSec > 0) {
+                                    currentPhase = "REST"
+                                    phaseSecondsRemaining = restSec
+                                } else {
+                                    if (currentLoop < totalLoops) {
+                                        currentLoop++
+                                        currentPhase = "HOLD_POSTURE"
+                                        phaseSecondsRemaining = holdPostureSec
+                                    } else {
+                                        isTimerRunning = false
+                                        dialogState = "COMPLETED"
+                                    }
+                                }
+                            }
+                            "REST" -> {
+                                if (currentLoop < totalLoops) {
+                                    currentLoop++
+                                    currentPhase = "HOLD_POSTURE"
+                                    phaseSecondsRemaining = holdPostureSec
+                                } else {
+                                    isTimerRunning = false
+                                    dialogState = "COMPLETED"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Dialog(onDismissRequest = {
+        isTimerRunning = false
+        onDismiss()
+    }) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .testTag("workout_timer_dialog"),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .fillMaxWidth()
+            ) {
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = routine.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = if (isBreathing) "Kateda Dynamic Breathwork Timer" else "Kateda Posture Hold Timer",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    IconButton(onClick = {
+                        isTimerRunning = false
+                        onDismiss()
+                    }) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close Dialog")
+                    }
+                }
+
+                Divider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                )
+
+                when (dialogState) {
+                    "CONFIG" -> {
+                        Text(
+                            text = "Configure Practice Flow",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .fillMaxWidth()
+                        ) {
+                            if (isBreathing) {
+                                TimerSettingRow(
+                                    label = "Inhale (Breathe In)",
+                                    seconds = inhaleSec,
+                                    onSecondsChanged = { inhaleSec = it.coerceIn(2, 12) },
+                                    color = Color(0xFF64B5F6)
+                                )
+                                TimerSettingRow(
+                                    label = "Hold (Abs Compacted)",
+                                    seconds = holdSec,
+                                    onSecondsChanged = { holdSec = it.coerceIn(0, 10) },
+                                    color = Color(0xFFFFD54F)
+                                )
+                                TimerSettingRow(
+                                    label = "Exhale (Breathe Out)",
+                                    seconds = exhaleSec,
+                                    onSecondsChanged = { exhaleSec = it.coerceIn(2, 12) },
+                                    color = Color(0xFFFF8A65)
+                                )
+                                TimerSettingRow(
+                                    label = "Rest/Recovery Phase",
+                                    seconds = restSec,
+                                    onSecondsChanged = { restSec = it.coerceIn(0, 10) },
+                                    color = Color(0xFF80CBC4)
+                                )
+                            } else {
+                                TimerSettingRow(
+                                    label = "Hold Posture / Stance",
+                                    seconds = holdPostureSec,
+                                    onSecondsChanged = { holdPostureSec = it.coerceIn(5, 120) },
+                                    color = Color(0xFFE57373)
+                                )
+                                TimerSettingRow(
+                                    label = "Rest/Recovery Between Holds",
+                                    seconds = restSec,
+                                    onSecondsChanged = { restSec = it.coerceIn(0, 30) },
+                                    color = Color(0xFF80CBC4)
+                                )
+                            }
+
+                            TimerSettingRow(
+                                label = "Cycles/Loops Sequence",
+                                seconds = totalLoops,
+                                onSecondsChanged = { totalLoops = it.coerceIn(1, 15) },
+                                color = MaterialTheme.colorScheme.primary,
+                                unitLabel = "Loops"
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Duration Summary
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Clock",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Total Session Duration",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Text(
+                                    text = formatDuration(totalEstimatedSeconds),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = {
+                                dialogState = "RUNNING"
+                                currentLoop = 1
+                                currentPhase = if (isBreathing) "INHALE" else "HOLD_POSTURE"
+                                phaseSecondsRemaining = if (isBreathing) inhaleSec else holdPostureSec
+                                totalSecondsElapsed = 0
+                                isTimerRunning = true
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                               .testTag("begin_practice_timer_button"),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "BEGIN GUIDED PRACTICE",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                    }
+
+                    "RUNNING", "PAUSED" -> {
+                        // Current Phase Settings for Color scheme
+                        val (phaseColor, phaseDescription) = when (currentPhase) {
+                            "INHALE" -> Color(0xFF64B5F6) to "Deeply inhale through nostrils, expanding lower abdomen."
+                            "HOLD" -> Color(0xFFFFD54F) to "Hold breath. Secure core abdominal compaction."
+                            "EXHALE" -> Color(0xFFFF8A65) to "Slowly exhale, pushing tension down and out."
+                            "REST" -> Color(0xFF80CBC4) to "Relax all muscles. Recalibrating natural breathing wave."
+                            "HOLD_POSTURE" -> Color(0xFFE57373) to "Engage posture with rigid balance. Hold still."
+                            else -> MaterialTheme.colorScheme.primary to "Maintain concentration."
+                        }
+
+                        val maxPhaseSeconds = when (currentPhase) {
+                            "INHALE" -> inhaleSec
+                            "HOLD" -> holdSec
+                            "EXHALE" -> exhaleSec
+                            "REST" -> restSec
+                            "HOLD_POSTURE" -> holdPostureSec
+                            else -> 5
+                        }
+
+                        // Progress fraction
+                        val fraction = if (maxPhaseSeconds > 0) {
+                            phaseSecondsRemaining.toFloat() / maxPhaseSeconds
+                        } else 1f
+
+                        // Pulsing radius factor based on breathing phases
+                        val pulseTarget = when (currentPhase) {
+                            "INHALE" -> 0.8f + 0.6f * (1f - fraction)
+                            "HOLD" -> 1.4f + 0.05f * kotlin.math.sin(totalSecondsElapsed * 3f)
+                            "EXHALE" -> 0.8f + 0.6f * fraction
+                            "REST" -> 0.82f + 0.02f * kotlin.math.sin(totalSecondsElapsed * 1.5f)
+                            "HOLD_POSTURE" -> 1.0f + 0.04f * kotlin.math.sin(totalSecondsElapsed * 4f)
+                            else -> 1f
+                        }
+
+                        val animatedPulseScale by animateFloatAsState(
+                            targetValue = pulseTarget,
+                            animationSpec = spring(stiffness = Spring.StiffnessLow),
+                            label = "BreathingCorePulse"
+                        )
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            // Cycle status
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f))
+                                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Loop",
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "CYCLE $currentLoop OF $totalLoops",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Interactive Canvas Circular Tracker & Custom Breathing ball
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(170.dp)
+                                    .padding(8.dp)
+                            ) {
+                                // Background Arch
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    drawArc(
+                                        color = Color.Gray.copy(alpha = 0.1f),
+                                        startAngle = -90f,
+                                        sweepAngle = 360f,
+                                        useCenter = false,
+                                        style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+                                    )
+                                }
+
+                                // Foreground remaining duration arc
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    drawArc(
+                                        color = phaseColor,
+                                        startAngle = -90f,
+                                        sweepAngle = 360f * fraction,
+                                        useCenter = false,
+                                        style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+                                    )
+                                }
+
+                                // Simulated organic lungs/energy core pulsing ball
+                                Box(
+                                    modifier = Modifier
+                                        .size(90.dp)
+                                        .scale(animatedPulseScale)
+                                        .background(
+                                            Brush.radialGradient(
+                                                colors = listOf(
+                                                    phaseColor,
+                                                    phaseColor.copy(alpha = 0.4f),
+                                                    Color.Transparent
+                                                )
+                                            ),
+                                            shape = CircleShape
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (isBreathing) Icons.Default.Favorite else Icons.Default.Star,
+                                        contentDescription = "Action Symbol",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                // Phase countdown text block superimposed
+                                Text(
+                                    text = "$phaseSecondsRemaining",
+                                    style = MaterialTheme.typography.headlineLarge,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    modifier = Modifier.offset(y = 52.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Current phase name
+                            Text(
+                                text = when (currentPhase) {
+                                    "INHALE" -> "INHALE"
+                                    "HOLD" -> "HOLD BREATH"
+                                    "EXHALE" -> "EXHALE"
+                                    "REST" -> "REST & DETOX"
+                                    "HOLD_POSTURE" -> "HOLD STANCE"
+                                    else -> "PRACTICING"
+                                },
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Black,
+                                color = phaseColor,
+                                letterSpacing = 1.5.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // Interactive phase descriptive tutorial instruction
+                            Text(
+                                text = phaseDescription,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp)
+                                    .height(34.dp)
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Control Bar
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Quit/Stop Button
+                                OutlinedIconButton(
+                                    onClick = {
+                                        isTimerRunning = false
+                                        dialogState = "CONFIG"
+                                    },
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                    modifier = Modifier
+                                        .padding(horizontal = 6.dp)
+                                        .size(44.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Stop",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+
+                                // Play Pause central toggle
+                                FilledIconButton(
+                                    onClick = {
+                                        isTimerRunning = !isTimerRunning
+                                        dialogState = if (isTimerRunning) "RUNNING" else "PAUSED"
+                                    },
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = Color.Black
+                                    ),
+                                    modifier = Modifier
+                                        .padding(horizontal = 6.dp)
+                                        .size(52.dp)
+                                        .testTag("play_pause_timer_toggle")
+                                ) {
+                                    Icon(
+                                        imageVector = if (isTimerRunning) Icons.Default.Refresh else Icons.Default.PlayArrow,
+                                        contentDescription = if (isTimerRunning) "Pause" else "Play",
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                // Skip Phase Button
+                                OutlinedIconButton(
+                                    onClick = {
+                                        phaseSecondsRemaining = 1
+                                    },
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                    modifier = Modifier
+                                        .padding(horizontal = 6.dp)
+                                        .size(44.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Share, 
+                                        contentDescription = "Skip Phase",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Overall Elapsed
+                            Text(
+                                text = "Total elapsed: ${formatDuration(totalSecondsElapsed)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+
+                    "COMPLETED" -> {
+                        val finalDurationMinutes = maxOf(1, (totalSecondsElapsed / 60))
+                        val calculatedCaloriesBurned = remember(finalDurationMinutes, routine) {
+                            val progressRatio = totalSecondsElapsed.toFloat() / totalEstimatedSeconds.coerceAtLeast(1)
+                            val k = (routine.caloriesBurned * progressRatio).toInt()
+                            maxOf(10, k)
+                        }
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("timer_complete_screen")
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Finished",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Text(
+                                text = "Kateda Flow Completed!",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Text(
+                                text = "Your physical vessels are oxygenated and central energy has been harmonized.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                            )
+
+                            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+
+                            // Report Stats
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "TIME SPENT",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = formatDuration(totalSecondsElapsed),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "ESTIMATED BURN",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "$calculatedCaloriesBurned kcal",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "CYCLES DONE",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "$totalLoops / $totalLoops",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Button(
+                                onClick = {
+                                    onComplete(finalDurationMinutes, calculatedCaloriesBurned)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .testTag("save_practice_history_btn"),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    text = "SAVE PRACTICE TO DIARY",
+                                    color = Color.Black,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            TextButton(
+                                onClick = { onDismiss() },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Close without logging",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TimerSettingRow(
+    label: String,
+    seconds: Int,
+    onSecondsChanged: (Int) -> Unit,
+    color: Color,
+    unitLabel: String = "Sec"
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(color.copy(alpha = 0.08f))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "$seconds $unitLabel",
+                fontSize = 11.sp,
+                color = color,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            // Minus Button
+            OutlinedIconButton(
+                onClick = { onSecondsChanged(seconds - if (unitLabel == "Loops") 1 else if (seconds <= 10) 1 else 5) },
+                border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+                modifier = Modifier.size(28.dp)
+            ) {
+                Text("-", fontWeight = FontWeight.Bold, color = color, fontSize = 12.sp)
+            }
+
+            // Slider in center
+            Slider(
+                value = seconds.toFloat(),
+                onValueChange = { onSecondsChanged(it.toInt()) },
+                valueRange = if (unitLabel == "Loops") 1f..15f else if (label.contains("Post")) 5f..120f else 0f..12f,
+                modifier = Modifier.width(80.dp),
+                colors = SliderDefaults.colors(
+                    activeTrackColor = color,
+                    inactiveTrackColor = color.copy(alpha = 0.2f),
+                    thumbColor = color
+                )
+            )
+
+            // Plus Button
+            OutlinedIconButton(
+                onClick = { onSecondsChanged(seconds + if (unitLabel == "Loops") 1 else if (seconds < 10) 1 else 5) },
+                border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+                modifier = Modifier.size(28.dp)
+            ) {
+                Text("+", fontWeight = FontWeight.Bold, color = color, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+fun formatDuration(seconds: Int): String {
+    val m = seconds / 60
+    val s = seconds % 60
+    return if (m > 0) "${m}m ${s}s" else "${s}s"
 }

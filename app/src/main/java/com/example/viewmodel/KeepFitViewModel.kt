@@ -289,6 +289,17 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun trackCustomCompletedWorkout(name: String, level: String, durationMinutes: Int, caloriesBurned: Int) {
+        viewModelScope.launch {
+            repository.logCompletedExercise(
+                name = name,
+                level = level,
+                durationMinutes = durationMinutes,
+                caloriesBurned = caloriesBurned
+            )
+        }
+    }
+
     fun deleteCompletedExercise(id: Int) {
         viewModelScope.launch {
             repository.deleteCompletedExerciseById(id)
