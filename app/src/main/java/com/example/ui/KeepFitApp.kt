@@ -11,6 +11,8 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -1959,6 +1961,50 @@ fun WorkoutTimerDialog(
     var totalSecondsElapsed by remember { mutableIntStateOf(0) }
     var isTimerRunning by remember { mutableStateOf(false) }
 
+    fun playTickSound() {
+        val sampleRate = 22050
+        val durationSamples = (sampleRate * 0.015f).toInt() // 15ms
+        val buffer = ShortArray(durationSamples)
+        for (i in 0 until durationSamples) {
+            val t = i.toFloat() / sampleRate
+            // 1500 Hz clean sine wave with an extremely sharp exponential decay for a crisp woody tick
+            val amp = kotlin.math.exp(-t * 280f) * 0.12f
+            val sine = kotlin.math.sin(2f * Math.PI.toFloat() * 1500f * t)
+            buffer[i] = (sine * amp * 32767f).toInt().toShort()
+        }
+        try {
+            val track = AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                .setBufferSizeInBytes(buffer.size * 2)
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .build()
+            track.write(buffer, 0, buffer.size)
+            track.play()
+            // Asynchronously stop and release track
+            kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                delay(120)
+                try {
+                    track.stop()
+                    track.release()
+                } catch (ignored: Exception) {}
+            }
+        } catch (e: Exception) {
+            Log.e("KeepFitAudio", "Tick sonification failed: ${e.message}")
+        }
+    }
+
     // Setup TTS Engine and Dispose on Exit
     val context = LocalContext.current
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
@@ -2098,44 +2144,58 @@ fun WorkoutTimerDialog(
 
                 val random = java.util.Random()
                 val chunk = ShortArray(1024)
-                var lastValue1 = 0f
-                var lastValue2 = 0f
+                
+                var brownNoiseVal = 0f
+                var sampleIndex = 0L
+                val startTime = System.currentTimeMillis()
+                val maxPhaseSeconds = if (currentPhase == "INHALE") inhaleSec else exhaleSec
+                val durationMs = maxPhaseSeconds * 1000f
 
                 while (isActive) {
-                    val maxPhaseSeconds = if (currentPhase == "INHALE") inhaleSec else exhaleSec
-                    val remaining = phaseSecondsRemaining.toFloat()
+                    val elapsedMs = System.currentTimeMillis() - startTime
+                    val progressRatio = (elapsedMs.toFloat() / durationMs).coerceIn(0f, 1f)
 
-                    // Shape a bell-curve envelope for inhale and exhale breaths
-                    val progressRatio = if (currentPhase == "INHALE") {
-                        (maxPhaseSeconds - remaining) / maxPhaseSeconds.coerceAtLeast(1)
-                    } else {
-                        remaining / maxPhaseSeconds.coerceAtLeast(1)
-                    }
-
+                    // Shape a perfect swell bell-curve envelope
                     val envelope = if (enableVoice && isVoiceSpeaking) {
                         0f
                     } else {
-                        kotlin.math.sin(progressRatio.coerceIn(0f, 1f) * Math.PI.toFloat())
+                        kotlin.math.sin(progressRatio * Math.PI.toFloat())
                     }
 
-                    // Low-pass filter coefficient for airflow sound (Inhale is sharper, Exhale is deeper/warmer)
-                    val fc = if (currentPhase == "INHALE") 0.35f else 0.22f
-                    val targetVolume = envelope * 0.3f // Safe, comforting volume range
+                    // Define distinct frequencies for Inhale vs Exhale
+                    val isInhale = currentPhase == "INHALE"
+                    val (fBase, fHarmonic) = if (isInhale) {
+                        // Inhale has a gently rising pitch sequence (110Hz to 122Hz)
+                        val base = 110.0 + (12.0 * progressRatio)
+                        base to (base * 1.5)
+                    } else {
+                        // Exhale has a gently falling pitch sequence (85Hz down to 75Hz)
+                        val base = 85.0 - (10.0 * progressRatio)
+                        base to (base * 1.5)
+                    }
+
+                    // Brown noise gives a deep, therapeutic hum/rumble (no screechy high static)
+                    val windVolume = if (isInhale) 0.18f else 0.22f
+                    val sineVolume = if (isInhale) 0.12f else 0.08f
 
                     for (i in chunk.indices) {
-                        val rawNoise = random.nextFloat() * 2f - 1f
-                        val valIn = rawNoise * targetVolume
+                        val white = random.nextFloat() * 2f - 1f
+                        brownNoiseVal = (brownNoiseVal * 0.985f) + (white * 0.015f)
                         
-                        // Simple 2-pole lowpass filter for an organic wind/breathing effect
-                        val filtered = (valIn + lastValue1 + lastValue2) * fc
-                        lastValue2 = lastValue1
-                        lastValue1 = valIn
-
-                        chunk[i] = (filtered * 32767f).toInt().coerceIn(-32768, 32767).toShort()
+                        val tSeconds = sampleIndex.toDouble() / sampleRate
+                        val angleBase = 2.0 * Math.PI * fBase * tSeconds
+                        val angleHarmonic = 2.0 * Math.PI * fHarmonic * tSeconds
+                        
+                        val sineWave = (kotlin.math.sin(angleBase) * 0.65 + kotlin.math.sin(angleHarmonic) * 0.35) * sineVolume
+                        val oceanWind = brownNoiseVal * windVolume
+                        
+                        val mixed = (oceanWind + sineWave) * envelope
+                        chunk[i] = (mixed * 32767f).toInt().coerceIn(-32768, 32767).toShort()
+                        sampleIndex++
                     }
 
                     track.write(chunk, 0, chunk.size)
-                    kotlinx.coroutines.delay(10)
+                    kotlinx.coroutines.delay(40)
                 }
             } catch (e: Exception) {
                 Log.e("KeepFitAudio", "Dynamic synth error: ${e.message}")
@@ -2187,6 +2247,9 @@ fun WorkoutTimerDialog(
                 }
                 totalSecondsElapsed++
                 phaseSecondsRemaining--
+                if (enableAmbientSound) {
+                    playTickSound()
+                }
                 
                 if (phaseSecondsRemaining == 0) {
                     // Transition phase
