@@ -70,7 +70,7 @@ fun WorkoutTimerDialog(
     var restSec by remember { mutableIntStateOf(if (isBreathing) 2 else 5) }
     
     // For posture/stances
-    var holdPostureSec by remember { mutableIntStateOf(if (routine.id == "sikap_basic") 30 else 45) }
+    var holdPostureSec by remember { mutableIntStateOf(if (routine.name.lowercase().contains("sikap")) 30 else 45) }
     
     var totalLoops by remember { mutableIntStateOf(if (isBreathing) 5 else 3) }
 
@@ -89,6 +89,19 @@ fun WorkoutTimerDialog(
     var phaseSecondsRemaining by remember { mutableIntStateOf(0) }
     var totalSecondsElapsed by remember { mutableIntStateOf(0) }
     var isTimerRunning by remember { mutableStateOf(false) }
+    
+    // Dynamic Step States
+    val currentStepDetails = remember(languageCode, routine) {
+        if (languageCode == "ID" && routine.stepDetailsID.isNotEmpty()) {
+            routine.stepDetailsID
+        } else {
+            routine.stepDetailsEN
+        }
+    }
+    val isDynamic = currentStepDetails.isNotEmpty()
+    var currentStepIndex by remember { mutableIntStateOf(0) }
+    var waitForUserPress by remember { mutableStateOf(false) }
+    var waitForSpeechToFinish by remember { mutableStateOf(false) }
 
     fun playTickSound() {
         val sampleRate = 22050
@@ -271,9 +284,9 @@ fun WorkoutTimerDialog(
                         kotlin.math.cos(progressRatio * (Math.PI / 2.0)).toFloat()
                     }
 
-                    // Apply vocal speech override context
+                    // Apply soft audio ducking (30% volume) so breathing wind plays softly during vocal guide
                     val finalEnvelope = if (enableVoice && isVoiceSpeaking) {
-                        0f
+                        envelope * 0.3f
                     } else {
                         envelope
                     }
@@ -356,8 +369,11 @@ fun WorkoutTimerDialog(
     }
 
     // Calculate dynamic values for completion screen
-    val totalEstimatedSeconds = remember(isBreathing, inhaleSec, holdSec, exhaleSec, restSec, holdPostureSec, totalLoops) {
-        if (isBreathing) {
+    val totalEstimatedSeconds = remember(isBreathing, inhaleSec, holdSec, exhaleSec, restSec, holdPostureSec, totalLoops, isDynamic, currentStepDetails, routine.loops) {
+        if (isDynamic) {
+            val oneLoopSecs = currentStepDetails.sumOf { (it.duration ?: 0) }
+            oneLoopSecs * (routine.loops.coerceAtLeast(1))
+        } else if (isBreathing) {
             (inhaleSec + holdSec + exhaleSec + restSec) * totalLoops
         } else {
             (holdPostureSec + restSec) * totalLoops
@@ -376,98 +392,175 @@ fun WorkoutTimerDialog(
         }
     }
 
-    // Timer Effect
+    // Timer Effect (Syncs precisely and concurrently, providing zero-lag responsive feedback)
     LaunchedEffect(isTimerRunning) {
         if (isTimerRunning) {
-            while (isTimerRunning && phaseSecondsRemaining > 0) {
-                val now = System.currentTimeMillis()
-                if (enableVoice && isVoiceSpeaking && (now - voiceStartMillis < 10000L)) {
-                    delay(100)
-                    continue
-                }
-                delay(1000)
-                val nowAfterDelay = System.currentTimeMillis()
-                if (enableVoice && isVoiceSpeaking && (nowAfterDelay - voiceStartMillis < 10000L)) {
-                    continue
-                }
-                totalSecondsElapsed++
-                phaseSecondsRemaining--
-                if (enableAmbientSound) {
-                    playTickSound()
-                }
-                
-                if (phaseSecondsRemaining == 0) {
-                    // Transition phase
-                    if (isBreathing) {
-                        when (currentPhase) {
-                            "INHALE" -> {
-                                if (holdSec > 0) {
-                                    currentPhase = "HOLD"
-                                    phaseSecondsRemaining = holdSec
-                                } else {
-                                    currentPhase = "EXHALE"
-                                    phaseSecondsRemaining = exhaleSec
+            while (isTimerRunning) {
+                if (isDynamic) {
+                    val currentStep = currentStepDetails.getOrNull(currentStepIndex)
+                    if (currentStep == null) {
+                        if (currentLoop < (routine.loops.coerceAtLeast(1))) {
+                            currentLoop++
+                            currentStepIndex = 0
+                            val nextStep = currentStepDetails.getOrNull(0)
+                            if (nextStep != null) {
+                                currentPhase = nextStep.type ?: "instruction"
+                                phaseSecondsRemaining = nextStep.duration ?: 0
+                                waitForUserPress = (nextStep.unit != "none" && nextStep.unit != "seconds")
+                                waitForSpeechToFinish = (nextStep.waitForTTS == true)
+                                if (!waitForSpeechToFinish && nextStep.ttsCommand?.isNotEmpty() == true) {
+                                    speakText(nextStep.ttsCommand)
                                 }
                             }
-                            "HOLD" -> {
-                                currentPhase = "EXHALE"
-                                phaseSecondsRemaining = exhaleSec
-                            }
-                            "EXHALE" -> {
-                                if (restSec > 0) {
-                                    currentPhase = "REST"
-                                    phaseSecondsRemaining = restSec
-                                } else {
-                                    if (currentLoop < totalLoops) {
+                        } else {
+                            isTimerRunning = false
+                            dialogState = "COMPLETED"
+                            break
+                        }
+                    } else {
+                        // We are in a dynamic sequence
+                        if (waitForUserPress) {
+                            // Wait here without ticking seconds if it's completely manual
+                            delay(100)
+                        } else if (waitForSpeechToFinish && isVoiceSpeaking) {
+                            delay(100)
+                        } else {
+                            // Normal timer tracking
+                            if (phaseSecondsRemaining > 0) {
+                                delay(1000)
+                                if (isTimerRunning) {
+                                    totalSecondsElapsed++
+                                    phaseSecondsRemaining--
+                                    if (enableAmbientSound) {
+                                        playTickSound()
+                                    }
+                                }
+                            } else {
+                                // Transition to next dynamic step
+                                currentStepIndex++
+                                val nextStep = currentStepDetails.getOrNull(currentStepIndex)
+                                if (nextStep == null) {
+                                    if (currentLoop < (routine.loops.coerceAtLeast(1))) {
                                         currentLoop++
-                                        currentPhase = "INHALE"
-                                        phaseSecondsRemaining = inhaleSec
+                                        currentStepIndex = 0
+                                        val firstStep = currentStepDetails.getOrNull(0)
+                                        if (firstStep != null) {
+                                            currentPhase = firstStep.type ?: "instruction"
+                                            phaseSecondsRemaining = firstStep.duration ?: 0
+                                            waitForUserPress = (firstStep.unit != "none" && firstStep.unit != "seconds")
+                                            waitForSpeechToFinish = (firstStep.waitForTTS == true)
+                                            if (firstStep.ttsCommand?.isNotEmpty() == true) {
+                                                speakText(firstStep.ttsCommand)
+                                            }
+                                        }
                                     } else {
                                         isTimerRunning = false
                                         dialogState = "COMPLETED"
                                     }
+                                } else {
+                                    currentPhase = nextStep.type ?: "instruction"
+                                    phaseSecondsRemaining = nextStep.duration ?: 0
+                                    waitForUserPress = (nextStep.unit != "none" && nextStep.unit != "seconds")
+                                    waitForSpeechToFinish = (nextStep.waitForTTS == true)
+                                    if (nextStep.ttsCommand?.isNotEmpty() == true) {
+                                        speakText(nextStep.ttsCommand)
+                                    }
                                 }
                             }
-                            "REST" -> {
-                                if (currentLoop < totalLoops) {
-                                    currentLoop++
-                                    currentPhase = "INHALE"
-                                    phaseSecondsRemaining = inhaleSec
+                        }
+                    }
+                } else {
+                    if (phaseSecondsRemaining > 0) {
+                        delay(1000)
+                        if (isTimerRunning) {
+                            totalSecondsElapsed++
+                            phaseSecondsRemaining--
+                            if (enableAmbientSound) {
+                                playTickSound()
+                            }
+                            
+                            if (phaseSecondsRemaining == 0) {
+                                // Transition phase
+                                if (isBreathing) {
+                                    when (currentPhase) {
+                                        "INHALE" -> {
+                                            if (holdSec > 0) {
+                                                currentPhase = "HOLD"
+                                                phaseSecondsRemaining = holdSec
+                                            } else {
+                                                currentPhase = "EXHALE"
+                                                phaseSecondsRemaining = exhaleSec
+                                            }
+                                        }
+                                        "HOLD" -> {
+                                            currentPhase = "EXHALE"
+                                            phaseSecondsRemaining = exhaleSec
+                                        }
+                                        "EXHALE" -> {
+                                            if (restSec > 0) {
+                                                currentPhase = "REST"
+                                                phaseSecondsRemaining = restSec
+                                            } else {
+                                                if (currentLoop < totalLoops) {
+                                                    currentLoop++
+                                                    currentPhase = "INHALE"
+                                                    phaseSecondsRemaining = inhaleSec
+                                                } else {
+                                                    isTimerRunning = false
+                                                    dialogState = "COMPLETED"
+                                                    break
+                                                }
+                                            }
+                                        }
+                                        "REST" -> {
+                                            if (currentLoop < totalLoops) {
+                                                currentLoop++
+                                                currentPhase = "INHALE"
+                                                phaseSecondsRemaining = inhaleSec
+                                            } else {
+                                                isTimerRunning = false
+                                                dialogState = "COMPLETED"
+                                                break
+                                            }
+                                        }
+                                    }
                                 } else {
-                                    isTimerRunning = false
-                                    dialogState = "COMPLETED"
+                                    // Posture holds
+                                    when (currentPhase) {
+                                        "HOLD_POSTURE" -> {
+                                            if (restSec > 0) {
+                                                currentPhase = "REST"
+                                                phaseSecondsRemaining = restSec
+                                            } else {
+                                                if (currentLoop < totalLoops) {
+                                                    currentLoop++
+                                                    currentPhase = "HOLD_POSTURE"
+                                                    phaseSecondsRemaining = holdPostureSec
+                                                } else {
+                                                    isTimerRunning = false
+                                                    dialogState = "COMPLETED"
+                                                    break
+                                                }
+                                            }
+                                        }
+                                        "REST" -> {
+                                            if (currentLoop < totalLoops) {
+                                                currentLoop++
+                                                currentPhase = "HOLD_POSTURE"
+                                                phaseSecondsRemaining = holdPostureSec
+                                            } else {
+                                                isTimerRunning = false
+                                                dialogState = "COMPLETED"
+                                                break
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     } else {
-                        // Posture holds
-                        when (currentPhase) {
-                            "HOLD_POSTURE" -> {
-                                if (restSec > 0) {
-                                    currentPhase = "REST"
-                                    phaseSecondsRemaining = restSec
-                                } else {
-                                    if (currentLoop < totalLoops) {
-                                        currentLoop++
-                                        currentPhase = "HOLD_POSTURE"
-                                        phaseSecondsRemaining = holdPostureSec
-                                    } else {
-                                        isTimerRunning = false
-                                        dialogState = "COMPLETED"
-                                    }
-                                }
-                            }
-                            "REST" -> {
-                                if (currentLoop < totalLoops) {
-                                    currentLoop++
-                                    currentPhase = "HOLD_POSTURE"
-                                    phaseSecondsRemaining = holdPostureSec
-                                } else {
-                                    isTimerRunning = false
-                                    dialogState = "COMPLETED"
-                                }
-                            }
-                        }
+                        // Avoid infinite loop if somehow non-dynamic and phaseSecondsRemaining <= 0
+                        delay(100)
                     }
                 }
             }
@@ -744,12 +837,33 @@ fun WorkoutTimerDialog(
                             onClick = {
                                 dialogState = "RUNNING"
                                 currentLoop = 1
-                                currentPhase = if (isBreathing) "INHALE" else "HOLD_POSTURE"
-                                phaseSecondsRemaining = if (isBreathing) inhaleSec else holdPostureSec
-                                totalSecondsElapsed = 0
-                                isTimerRunning = true
-                                val startMsg = if (languageCode == "ID") "Mulai latihan. Regangkan tubuh Anda." else "Begin practice. Expand your body."
-                                speakText(startMsg)
+                                if (isDynamic) {
+                                    currentStepIndex = 0
+                                    val firstStep = currentStepDetails.getOrNull(0)
+                                    if (firstStep != null) {
+                                        currentPhase = firstStep.type ?: "instruction"
+                                        phaseSecondsRemaining = firstStep.duration ?: 0
+                                        waitForUserPress = (firstStep.unit != "none" && firstStep.unit != "seconds")
+                                        waitForSpeechToFinish = (firstStep.waitForTTS == true)
+                                        isTimerRunning = true
+                                        if (firstStep.ttsCommand?.isNotEmpty() == true) {
+                                            speakText(firstStep.ttsCommand)
+                                        } else {
+                                            val startMsg = if (languageCode == "ID") "Mulai latihan." else "Begin practice."
+                                            speakText(startMsg)
+                                        }
+                                    } else {
+                                        isTimerRunning = true
+                                        speakText(if (languageCode == "ID") "Mulai latihan." else "Begin practice.")
+                                    }
+                                } else {
+                                    currentPhase = if (isBreathing) "INHALE" else "HOLD_POSTURE"
+                                    phaseSecondsRemaining = if (isBreathing) inhaleSec else holdPostureSec
+                                    totalSecondsElapsed = 0
+                                    isTimerRunning = true
+                                    val startMsg = if (languageCode == "ID") "Mulai latihan. Regangkan tubuh Anda." else "Begin practice. Expand your body."
+                                    speakText(startMsg)
+                                }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -771,22 +885,42 @@ fun WorkoutTimerDialog(
 
                     "RUNNING", "PAUSED" -> {
                         // Current Phase Settings for Color scheme
-                        val (phaseColor, phaseDescription) = when (currentPhase) {
-                            "INHALE" -> Color(0xFF64B5F6) to (if (languageCode == "ID") "Tarik napas dalam-dalam lewat hidung, kembangkan perut bagian bawah." else "Deeply inhale through nostrils, expanding lower abdomen.")
-                            "HOLD" -> Color(0xFFFFD54F) to (if (languageCode == "ID") "Tahan napas. Kunci pemadatan perut inti." else "Hold breath. Secure core abdominal compaction.")
-                            "EXHALE" -> Color(0xFFFF8A65) to (if (languageCode == "ID") "Hembuskan napas perlahan, tekan ketegangan ke bawah dan luar." else "Slowly exhale, pushing tension down and out.")
-                            "REST" -> Color(0xFF80CBC4) to (if (languageCode == "ID") "Rilekskan semua otot. Kalibrasi kembali aliran napas alami." else "Relax all muscles. Recalibrating natural breathing wave.")
-                            "HOLD_POSTURE" -> Color(0xFFE57373) to (if (languageCode == "ID") "Sikap tegak dengan keseimbangan kokoh. Diam jangan bergerak." else "Engage posture with rigid balance. Hold still.")
-                            else -> MaterialTheme.colorScheme.primary to (if (languageCode == "ID") "Pertahankan konsentrasi." else "Maintain concentration.")
+                        val isDynamicStep = isDynamic && currentStepDetails.getOrNull(currentStepIndex) != null
+                        val currentDynamicObj = if (isDynamic) currentStepDetails.getOrNull(currentStepIndex) else null
+
+                        val (phaseColor, phaseDescription) = if (isDynamicStep && currentDynamicObj != null) {
+                            val color = when (currentDynamicObj.type) {
+                                "inhale" -> Color(0xFF64B5F6)
+                                "static_hold", "breath_hold" -> Color(0xFFFFD54F)
+                                "exhale" -> Color(0xFFFF8A65)
+                                "rest" -> Color(0xFF80CBC4)
+                                else -> MaterialTheme.colorScheme.primary
+                            }
+                            val textStr = currentDynamicObj.text ?: currentPhase
+                            val descStr = currentDynamicObj.hint ?: ""
+                            color to (if (descStr.isNotEmpty()) "$textStr\n$descStr" else textStr)
+                        } else {
+                            when (currentPhase) {
+                                "INHALE" -> Color(0xFF64B5F6) to (if (languageCode == "ID") "Tarik napas dalam-dalam lewat hidung, kembangkan perut bagian bawah." else "Deeply inhale through nostrils, expanding lower abdomen.")
+                                "HOLD" -> Color(0xFFFFD54F) to (if (languageCode == "ID") "Tahan napas. Kunci pemadatan perut inti." else "Hold breath. Secure core abdominal compaction.")
+                                "EXHALE" -> Color(0xFFFF8A65) to (if (languageCode == "ID") "Hembuskan napas perlahan, tekan ketegangan ke bawah dan luar." else "Slowly exhale, pushing tension down and out.")
+                                "REST" -> Color(0xFF80CBC4) to (if (languageCode == "ID") "Rilekskan semua otot. Kalibrasi kembali aliran napas alami." else "Relax all muscles. Recalibrating natural breathing wave.")
+                                "HOLD_POSTURE" -> Color(0xFFE57373) to (if (languageCode == "ID") "Sikap tegak dengan keseimbangan kokoh. Diam jangan bergerak." else "Engage posture with rigid balance. Hold still.")
+                                else -> MaterialTheme.colorScheme.primary to (if (languageCode == "ID") "Pertahankan konsentrasi." else "Maintain concentration.")
+                            }
                         }
 
-                        val maxPhaseSeconds = when (currentPhase) {
-                            "INHALE" -> inhaleSec
-                            "HOLD" -> holdSec
-                            "EXHALE" -> exhaleSec
-                            "REST" -> restSec
-                            "HOLD_POSTURE" -> holdPostureSec
-                            else -> 5
+                        val maxPhaseSeconds = if (isDynamicStep && currentDynamicObj != null) {
+                            currentDynamicObj.duration ?: 0
+                        } else {
+                            when (currentPhase) {
+                                "INHALE" -> inhaleSec
+                                "HOLD" -> holdSec
+                                "EXHALE" -> exhaleSec
+                                "REST" -> restSec
+                                "HOLD_POSTURE" -> holdPostureSec
+                                else -> 5
+                            }
                         }
 
                         // Progress fraction
@@ -960,20 +1094,32 @@ fun WorkoutTimerDialog(
                                 }
 
                                 // Phase countdown text block superimposed
-                                Text(
-                                    text = "$phaseSecondsRemaining",
-                                    style = MaterialTheme.typography.headlineLarge,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White,
-                                    modifier = Modifier.offset(y = 52.dp)
-                                )
+                                if (waitForUserPress) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Ready for Next",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(36.dp).offset(y = 52.dp)
+                                    )
+                                } else {
+                                    Text(
+                                        text = "$phaseSecondsRemaining",
+                                        style = MaterialTheme.typography.headlineLarge,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White,
+                                        modifier = Modifier.offset(y = 52.dp)
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
 
                             // Current phase name
+                            val isDynamicStep = isDynamic && currentStepDetails.getOrNull(currentStepIndex) != null
+                            val currentDynamicObj = if (isDynamic) currentStepDetails.getOrNull(currentStepIndex) else null
+
                             Text(
-                                text = when (currentPhase) {
+                                text = if (isDynamicStep) currentDynamicObj?.type?.uppercase() ?: currentPhase.uppercase() else when (currentPhase) {
                                     "INHALE" -> "INHALE"
                                     "HOLD" -> "HOLD BREATH"
                                     "EXHALE" -> "EXHALE"
@@ -1027,26 +1173,70 @@ fun WorkoutTimerDialog(
                                     )
                                 }
 
-                                // Play Pause central toggle
-                                FilledIconButton(
-                                    onClick = {
-                                        isTimerRunning = !isTimerRunning
-                                        dialogState = if (isTimerRunning) "RUNNING" else "PAUSED"
-                                    },
-                                    colors = IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = Color.Black
-                                    ),
-                                    modifier = Modifier
-                                        .padding(horizontal = 6.dp)
-                                        .size(52.dp)
-                                        .testTag("play_pause_timer_toggle")
-                                ) {
-                                    Icon(
-                                        imageVector = if (isTimerRunning) Icons.Default.Refresh else Icons.Default.PlayArrow,
-                                        contentDescription = if (isTimerRunning) "Pause" else "Play",
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                                if (waitForUserPress) {
+                                    Button(
+                                        onClick = {
+                                            currentStepIndex++
+                                            val nextStep = currentStepDetails.getOrNull(currentStepIndex)
+                                            if (nextStep == null) {
+                                                if (currentLoop < (routine.loops.coerceAtLeast(1))) {
+                                                    currentLoop++
+                                                    currentStepIndex = 0
+                                                    val firstStep = currentStepDetails.getOrNull(0)
+                                                    if (firstStep != null) {
+                                                        currentPhase = firstStep.type ?: "instruction"
+                                                        phaseSecondsRemaining = firstStep.duration ?: 0
+                                                        waitForUserPress = (firstStep.unit != "none" && firstStep.unit != "seconds")
+                                                        waitForSpeechToFinish = (firstStep.waitForTTS == true)
+                                                        if (firstStep.ttsCommand?.isNotEmpty() == true) {
+                                                            speakText(firstStep.ttsCommand)
+                                                        }
+                                                    }
+                                                } else {
+                                                    isTimerRunning = false
+                                                    dialogState = "COMPLETED"
+                                                }
+                                            } else {
+                                                currentPhase = nextStep.type ?: "instruction"
+                                                phaseSecondsRemaining = nextStep.duration ?: 0
+                                                waitForUserPress = (nextStep.unit != "none" && nextStep.unit != "seconds")
+                                                waitForSpeechToFinish = (nextStep.waitForTTS == true)
+                                                if (nextStep.ttsCommand?.isNotEmpty() == true) {
+                                                    speakText(nextStep.ttsCommand)
+                                                }
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = phaseColor),
+                                        shape = RoundedCornerShape(20.dp),
+                                        modifier = Modifier
+                                            .padding(horizontal = 6.dp)
+                                            .height(52.dp)
+                                            .width(130.dp)
+                                    ) {
+                                        Text("NEXT STEP", color = Color.Black, fontWeight = FontWeight.Bold)
+                                    }
+                                } else {
+                                    // Play Pause central toggle
+                                    FilledIconButton(
+                                        onClick = {
+                                            isTimerRunning = !isTimerRunning
+                                            dialogState = if (isTimerRunning) "RUNNING" else "PAUSED"
+                                        },
+                                        colors = IconButtonDefaults.filledIconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = Color.Black
+                                        ),
+                                        modifier = Modifier
+                                            .padding(horizontal = 6.dp)
+                                            .size(52.dp)
+                                            .testTag("play_pause_timer_toggle")
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isTimerRunning) Icons.Default.Refresh else Icons.Default.PlayArrow,
+                                            contentDescription = if (isTimerRunning) "Pause" else "Play",
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
                                 }
 
                                 // Skip Phase Button

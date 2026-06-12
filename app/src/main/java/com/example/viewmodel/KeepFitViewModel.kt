@@ -18,9 +18,14 @@ data class HealthRoutine(
     val name: String,
     val levelRequired: String,
     val description: String,
+    val descriptionEN: String = "",
+    val descriptionID: String = "",
     val durationMinutes: Int,
     val caloriesBurned: Int,
     val detailsSteps: List<String>,
+    val stepDetailsEN: List<StepDetail> = emptyList(),
+    val stepDetailsID: List<StepDetail> = emptyList(),
+    val loops: Int = 1,
     val tutorialUrl: String = "https://www.youtube.com/results?search_query=kateda+martial+art+health+breath",
     val imageUrl: String? = null
 )
@@ -28,6 +33,9 @@ data class HealthRoutine(
 class KeepFitViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: KeepFitRepository
+
+    private val _katedaWorkoutCatalog = MutableStateFlow<List<HealthRoutine>>(emptyList())
+    val KatedaWorkoutCatalog: StateFlow<List<HealthRoutine>> = _katedaWorkoutCatalog.asStateFlow()
 
     init {
         val database = KeepFitDatabase.getDatabase(application)
@@ -39,6 +47,51 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
             // Add a mock step record for today if absent, so we have fresh metrics
             val today = repository.getTodayDateString()
             repository.addStepsToDate(today, 1250) // Starting seed
+            
+            fetchExercisesFromSupabase()
+        }
+    }
+
+    private suspend fun fetchExercisesFromSupabase() {
+        try {
+            val exercises = SupabaseClient.api.getExercises(
+                apiKey = com.example.BuildConfig.SUPABASE_ANON_KEY,
+                auth = "Bearer ${com.example.BuildConfig.SUPABASE_ANON_KEY}"
+            )
+            
+            val routines = exercises.map { ex ->
+                val diffMap = mapOf(
+                    1 to "Kateda Basic (Healthy Movement)",
+                    2 to "Kateda Level 1 (Self-Defense Fundamentals)",
+                    3 to "Kateda Level 2 (Central Energy Breath)",
+                    4 to "Kateda Level 3 (Healing & Oxygenation)",
+                    5 to "Kateda Master (Power Synthesis)"
+                )
+                val level = diffMap[ex.difficulty ?: 1] ?: "Kateda Basic (Healthy Movement)"
+                
+                HealthRoutine(
+                    id = ex.id,
+                    name = ex.titleEN,
+                    levelRequired = level,
+                    description = ex.descriptionEN ?: "",
+                    descriptionEN = ex.descriptionEN ?: "",
+                    descriptionID = ex.descriptionID ?: "",
+                    durationMinutes = if (ex.duration > 0) ex.duration else 10,
+                    caloriesBurned = if (ex.calories > 0) ex.calories else 50,
+                    detailsSteps = ex.stepsEN ?: emptyList(),
+                    stepDetailsEN = ex.stepDetailsEN ?: emptyList(),
+                    stepDetailsID = ex.stepDetailsID ?: emptyList(),
+                    loops = ex.loops ?: 1,
+                    tutorialUrl = ex.videoUrl ?: "https://www.youtube.com/results?search_query=kateda+martial+art+health+breath",
+                    imageUrl = if (ex.id.contains("breath") || ex.titleEN.lowercase().contains("breath")) "breath" 
+                               else if (ex.id.contains("stance")) "stance"
+                               else "power"
+                )
+            }
+            _katedaWorkoutCatalog.value = routines
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Leave empty or maintain current value if fetch fails
         }
     }
 
@@ -95,123 +148,9 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
         "Kateda Master (Power Synthesis)"
     )
 
-    // Complete list of health exercises aligned with martial arts / healing breathing
-    val KatedaWorkoutCatalog = listOf(
-        HealthRoutine(
-            id = "sikap_basic",
-            name = "Sikap Balance Pose & Stance",
-            levelRequired = "Kateda Basic (Healthy Movement)",
-            description = "Centering your mass, aligning spinal posture, and dynamic joint mobilization to stimulate organic balance.",
-            durationMinutes = 5,
-            caloriesBurned = 35,
-            detailsSteps = listOf("Place feet shoulder-width apart.", "Gently bend knees, keeping spine strictly erect.", "Inhale slow, raising hands to chest level.", "Exhale, pushing hands down slowly while sinking weight."),
-            tutorialUrl = "https://www.youtube.com/results?search_query=kateda+martial+art+stance+posture",
-            imageUrl = "stance"
-        ),
-        HealthRoutine(
-            id = "harmonizing_breath",
-            name = "Harmonizing Abdominal Breath",
-            levelRequired = "Kateda Basic (Healthy Movement)",
-            description = "Gentle abdominal expansions to enrich blood oxygen, soothe core nervous tension, and condition lungs.",
-            durationMinutes = 8,
-            caloriesBurned = 50,
-            detailsSteps = listOf("Sit cross-legged or stand comfortably.", "Place hands on lower abdomen (Dan Tian equivalent).", "Slowly draw breath through nostrils for 4 seconds, inflating abdomen.", "Hold gently for 2 seconds.", "Exhale slow and empty chest and stomach completely over 6 seconds."),
-            tutorialUrl = "https://www.youtube.com/results?search_query=kateda+breathing+abdominal+breath",
-            imageUrl = "breath"
-        ),
-        HealthRoutine(
-            id = "vital_joint_circuits",
-            name = "Vital Energy Joint Circuits",
-            levelRequired = "Kateda Basic (Healthy Movement)",
-            description = "Coordinated full-body mobilization focusing on neck, wrists, shoulders and leg sockets to remove stagnant tension.",
-            durationMinutes = 10,
-            caloriesBurned = 60,
-            detailsSteps = listOf("Begin neck rotations, synchronized with deep breathing.", "Extend hands and perform circular wrist, elbow, and shoulder patterns.", "Lift alternate knees gently to rotate hip sockets outward.", "Maintain continuous relaxed breathing throughout."),
-            tutorialUrl = "https://www.youtube.com/results?search_query=qigong+joint+mobility+stretching+for+taichi",
-            imageUrl = "joint"
-        ),
-        HealthRoutine(
-            id = "self_defense_blocks",
-            name = "Protective Kinetic Guarding",
-            levelRequired = "Kateda Level 1 (Self-Defense Fundamentals)",
-            description = "Dynamic upper and lower limb defensive block series that tests core alignment and strengthens physical stability.",
-            durationMinutes = 12,
-            caloriesBurned = 110,
-            detailsSteps = listOf("Adopt solid left lead stance.", "Execute repetitive high, middle, and low guarding patterns with full tension.", "Switch lead stance and repeat.", "Combine posture changes with quick, focused exhales."),
-            tutorialUrl = "https://www.youtube.com/results?search_query=kateda+self+defense+blocking+movements",
-            imageUrl = "guard"
-        ),
-        HealthRoutine(
-            id = "central_energy_ignition",
-            name = "Central Energy Core Ignition",
-            levelRequired = "Kateda Level 1 (Self-Defense Fundamentals)",
-            description = "Brief, highly-concentrated dynamic contractions of the core muscle bands, storing kinetic potential.",
-            durationMinutes = 10,
-            caloriesBurned = 95,
-            detailsSteps = listOf("Stand with deep visual focus.", "Draw a short, sharp in-breath.", "Tense core muscles simultaneously for 5 seconds.", "Relax completely, breathing freely for 10 seconds before replicating."),
-            tutorialUrl = "https://www.youtube.com/results?search_query=kateda+central+energy+concentration",
-            imageUrl = "ignition"
-        ),
-        HealthRoutine(
-            id = "abdominal_compaction",
-            name = "Tense Abdominal Compaction",
-            levelRequired = "Kateda Level 2 (Central Energy Breath)",
-            description = "Kateda's core breathing methodology. Teaches deep compression and voluntary control of the abdominal wall.",
-            durationMinutes = 15,
-            caloriesBurned = 140,
-            detailsSteps = listOf("Inhale completely while expanding the torso.", "Exhale firmly, pulling your navel toward the spine.", "Contract and hold abdominal wall tightly for 4-8 seconds while performing slow hand movements.", "Release with a long, satisfying breath restoration."),
-            tutorialUrl = "https://www.youtube.com/results?search_query=kateda+abdominal+compaction",
-            imageUrl = "compaction"
-        ),
-        HealthRoutine(
-            id = "inner_power_flow",
-            name = "Central Power Flow Form",
-            levelRequired = "Kateda Level 2 (Central Energy Breath)",
-            description = "Continuous, slow, and deep physical sequences mirroring defense arts with full contraction-coordination cycles.",
-            durationMinutes = 20,
-            caloriesBurned = 185,
-            detailsSteps = listOf("Step into a wide horse stance (Kuda-kuda).", "Perform slow, resistive pushing/pulling hand forms.", "Sync every dynamic press with hard abdominal contraction and empty-lung breath cycles.", "Recover stance slowly."),
-            tutorialUrl = "https://www.youtube.com/results?search_query=kateda+inner+power+stances",
-            imageUrl = "power"
-        ),
-        HealthRoutine(
-            id = "therapeutic_breath_wave",
-            name = "Therapeutic Healing Wave",
-            levelRequired = "Kateda Level 3 (Healing & Oxygenation)",
-            description = "Gentle, continuous healing movements design to replenish organ vitality and flush out toxic lactic residues.",
-            durationMinutes = 15,
-            caloriesBurned = 80,
-            detailsSteps = listOf("Unclench all jaw and facial muscles.", "Utilize graceful hand strokes that emulate incoming waves standard to Kateda healing.", "Maintain long, ultra-slow respiratory loops without any pause or compaction.", "Focus mind solely on warm energy circulating to limbs."),
-            tutorialUrl = "https://www.youtube.com/results?search_query=kateda+healing+breath+wave",
-            imageUrl = "healing"
-        ),
-        HealthRoutine(
-            id = "cell_oxygenation",
-            name = "Hyper-Oxygenation Sequence",
-            levelRequired = "Kateda Level 3 (Healing & Oxygenation)",
-            description = "Controlled breathing speed transitions to optimize cellular gas-exchange and promote micro-muscle repair.",
-            durationMinutes = 12,
-            caloriesBurned = 75,
-            detailsSteps = listOf("Assume comfortable sitting position.", "Take 10 quick deep breathing cycles, filling lungs fully and emptying quickly.", "Pause holding breath out for 10 seconds.", "Follow with 2 minutes of ultra-slow soothing therapeutic wave breathing."),
-            tutorialUrl = "https://www.youtube.com/results?search_query=kateda+oxygenation+sequences",
-            imageUrl = "oxygen"
-        ),
-        HealthRoutine(
-            id = "power_breath_synthesis",
-            name = "Universal Core Energy Integration",
-            levelRequired = "Kateda Master (Power Synthesis)",
-            description = "Full integration of high tensional self defense stances, fast compaction blocks, and slow restorative wave states.",
-            durationMinutes = 30,
-            caloriesBurned = 280,
-            detailsSteps = listOf("Conduct 5 minutes of high speed reactive blockers with compaction bursts.", "Transition immediately to 10 minutes of horse-stance energy flow.", "Finish with 15 minutes of deep healing wave oxygenation.", "Rest seated silently for 2 minutes to settle internal energy."),
-            tutorialUrl = "https://www.youtube.com/results?search_query=kateda+central+energy+integration",
-            imageUrl = "master"
-        )
-    )
-
     // Filtered routines based on the user's level
-    val recommendedRoutines: StateFlow<List<HealthRoutine>> = userProfile.map { profile ->
-        KatedaWorkoutCatalog.filter { routine ->
+    val recommendedRoutines: StateFlow<List<HealthRoutine>> = combine(userProfile, KatedaWorkoutCatalog) { profile, catalog ->
+        catalog.filter { routine ->
             routine.levelRequired == profile.KatedaLevel || 
             // Also recommend basic if they are higher level
             (profile.KatedaLevel != "Kateda Basic (Healthy Movement)" && routine.levelRequired == "Kateda Basic (Healthy Movement)")
