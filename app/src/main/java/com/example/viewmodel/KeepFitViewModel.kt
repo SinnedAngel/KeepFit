@@ -26,7 +26,7 @@ data class HealthRoutine(
     val stepDetailsEN: List<StepDetail> = emptyList(),
     val stepDetailsID: List<StepDetail> = emptyList(),
     val loops: Int = 1,
-    val tutorialUrl: String = "https://www.youtube.com/results?search_query=kateda+martial+art+health+breath",
+    val tutorialUrl: String = "", //"https://www.youtube.com/results?search_query=kateda+martial+art+health+breath",
     val imageUrl: String? = null
 )
 
@@ -51,9 +51,6 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
         // Asynchronously scaffold default user profile data so the user never sees empty screens
         viewModelScope.launch {
             repository.initializeDefaultProfileIfNeeded()
-            // Add a mock step record for today if absent, so we have fresh metrics
-            val today = repository.getTodayDateString()
-            repository.addStepsToDate(today, 1250) // Starting seed
             
             fetchSupabaseData()
         }
@@ -104,7 +101,7 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
                     stepDetailsEN = ex.stepDetailsEN ?: emptyList(),
                     stepDetailsID = ex.stepDetailsID ?: emptyList(),
                     loops = ex.loops ?: 1,
-                    tutorialUrl = ex.videoUrl ?: "https://www.youtube.com/results?search_query=kateda+martial+art+health+breath",
+                    tutorialUrl = ex.videoUrl.orEmpty(), //?: "https://www.youtube.com/results?search_query=kateda+martial+art+health+breath",
                     imageUrl = if (ex.id.contains("breath") || ex.titleEN.lowercase().contains("breath")) "breath" 
                                else if (ex.id.contains("stance")) "stance"
                                else "power"

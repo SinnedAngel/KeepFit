@@ -9,7 +9,8 @@ interface SupabaseApi {
     suspend fun getExercises(
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
-        @Query("select") select: String = "*"
+        @Query("select") select: String = "*",
+        @Query("order") order: String = "id.asc"
     ): List<SupabaseExercise>
 
     @GET("belt_levels")
