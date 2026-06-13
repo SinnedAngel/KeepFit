@@ -64,10 +64,28 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
             val apiKey = com.example.BuildConfig.SUPABASE_ANON_KEY
             val auth = "Bearer $apiKey"
 
-            // Fetch belt levels first so we can map exercises correctly
+            // 1. Fetch belt levels first so we can map exercises and profile correctly
             val levels = SupabaseClient.api.getBeltLevels(apiKey, auth)
             _beltLevels.value = levels
 
+            // 2. Fetch member profile for mem-1
+            val members = SupabaseClient.api.getMemberById(apiKey, auth, "eq.mem-1")
+            members.firstOrNull()?.let { member ->
+                val currentProfile = userProfile.value
+                val updatedProfile = currentProfile.copy(
+                    name = member.fullName,
+                    KatedaLevel = levels.find { it.id == member.beltLevel }?.nameEN ?: currentProfile.KatedaLevel,
+                    heightCm = member.height ?: currentProfile.heightCm,
+                    weightKg = member.weight ?: currentProfile.weightKg
+                )
+                repository.saveUserProfile(updatedProfile)
+                // Also log the BMI if height and weight are provided
+                if (member.height != null && member.weight != null) {
+                    repository.logBmi(member.height, member.weight)
+                }
+            }
+
+            // 3. Fetch exercises
             val exercises = SupabaseClient.api.getExercises(apiKey, auth)
             
             val routines = exercises.map { ex ->
