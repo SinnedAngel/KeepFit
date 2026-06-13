@@ -1,6 +1,9 @@
 package com.example.ui
 
-import androidx.compose.foundation.Canvas
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import androidx.compose.foundation.Canvas as ComposeCanvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -17,16 +20,38 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import com.example.R.mipmap.ic_launcher
 import com.example.viewmodel.KeepFitViewModel
 import java.util.Locale
+
+@Composable
+fun rememberAdaptiveIconPainter(resId: Int): ImageBitmap? {
+    val context = LocalContext.current
+    return remember(resId) {
+        val drawable = ContextCompat.getDrawable(context, resId) ?: return@remember null
+        val bitmap = Bitmap.createBitmap(
+            drawable.intrinsicWidth.coerceAtLeast(1),
+            drawable.intrinsicHeight.coerceAtLeast(1),
+            Bitmap.Config.ARGB_8888
+        )
+        val canvas = Canvas(bitmap)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        bitmap.asImageBitmap()
+    }
+}
 
 // --- SCREEN 1: DASHBOARD ---
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,12 +103,14 @@ fun DashboardScreen(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Favorite,
-                            contentDescription = "Rank Icon",
-                            tint = Color.Black,
-                            modifier = Modifier.size(32.dp)
-                        )
+                        val iconBitmap = rememberAdaptiveIconPainter(ic_launcher)
+                        if (iconBitmap != null) {
+                            Image(
+                                bitmap = iconBitmap,
+                                contentDescription = "Rank Icon",
+                                modifier = Modifier.size(60.dp)
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
@@ -144,7 +171,7 @@ fun DashboardScreen(
                         val primaryColor = MaterialTheme.colorScheme.primary
                         val trackColor = MaterialTheme.colorScheme.surfaceVariant
 
-                        Canvas(modifier = Modifier.size(160.dp)) {
+                        ComposeCanvas(modifier = Modifier.size(160.dp)) {
                             // Track outline
                             drawArc(
                                 color = trackColor,
