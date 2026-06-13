@@ -2,8 +2,6 @@ package com.example.ui
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,20 +9,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.viewmodel.HealthRoutine
 
 @Composable
@@ -32,33 +32,7 @@ fun ExerciseTutorialCard(
     routine: HealthRoutine,
     modifier: Modifier = Modifier
 ) {
-    var isPlaying by remember { mutableStateOf(false) }
-    var playbackProgress by remember { mutableFloatStateOf(0f) }
-    var breathePhase by remember { mutableStateOf("Ready") }
-    var timerCounter by remember { mutableStateOf(0) }
     val context = LocalContext.current
-
-    LaunchedEffect(isPlaying) {
-        if (isPlaying) {
-            while (isPlaying) {
-                kotlinx.coroutines.delay(1000)
-                timerCounter++
-                playbackProgress = (playbackProgress + 0.083f) // Loop simulation block roughly every 12 seconds
-                if (playbackProgress > 1f) {
-                    playbackProgress = 0f
-                }
-                breathePhase = when (timerCounter % 12) {
-                    in 0..3 -> "INHALE (Abdomen Expanding 4s)"
-                    in 4..5 -> "HOLD (Oxygen Consolidating 2s)"
-                    else -> "EXHALE (Tension Discharging 6s)"
-                }
-            }
-        } else {
-            breathePhase = "Ready"
-            timerCounter = 0
-            playbackProgress = 0f
-        }
-    }
 
     Card(
         modifier = modifier
@@ -94,20 +68,47 @@ fun ExerciseTutorialCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Simulated Video Playback Screen
+            // Simulated Video Playback Screen or Slides Preview
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(130.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF1E1E1E)),
+                    .background(Color(0xFF1E1E1E))
+                    .clickable {
+                        val url = if (routine.slidesUrl.isNotEmpty()) routine.slidesUrl.first() else routine.tutorialUrl
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        context.startActivity(intent)
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                if (!isPlaying) {
+                if (routine.slidesUrl.isNotEmpty()) {
+                    AsyncImage(
+                        model = routine.slidesUrl.first(),
+                        contentDescription = "Tutorial Slide Preview",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    // Semi-transparent overlay for "Tap to View"
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Text(
+                            text = "TAP TO VIEW ALL SLIDES",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                } else {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxSize().padding(8.dp)
+                        modifier = Modifier.fillMaxSize().padding(8.dp),
                     ) {
                         Box(
                             modifier = Modifier
@@ -116,28 +117,17 @@ fun ExerciseTutorialCard(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = when (routine.imageUrl) {
-                                    "stance" -> Icons.Default.Home
-                                    "breath" -> Icons.Default.Favorite
-                                    "joint" -> Icons.Default.Refresh
-                                    "guard" -> Icons.Default.Lock
-                                    "ignition" -> Icons.Default.Warning
-                                    "compaction" -> Icons.Default.PlayArrow
-                                    "power" -> Icons.Default.Star
-                                    "healing" -> Icons.Default.FavoriteBorder
-                                    "oxygen" -> Icons.Default.Face
-                                    else -> Icons.Default.PlayArrow
-                                },
+                                imageVector = Icons.AutoMirrored.Filled.List,
                                 contentDescription = "Concept Illustration",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        
+
                         Spacer(modifier = Modifier.height(8.dp))
-                        
+
                         Text(
-                            text = "Reference Photo/Video: ${routine.name}",
+                            text = "Tutorial Concept: ${routine.name}",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.85f),
                             fontWeight = FontWeight.SemiBold,
@@ -150,82 +140,6 @@ fun ExerciseTutorialCard(
                             textAlign = TextAlign.Center
                         )
                     }
-                } else {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(12.dp)
-                    ) {
-                        // Core breathing cycle pulse
-                        val pulseFactor = when (breathePhase) {
-                            "INHALE (Abdomen Expanding 4s)" -> 1.4f
-                            "HOLD (Oxygen Consolidating 2s)" -> 1.1f
-                            else -> 0.8f
-                        }
-                        val animatedScale by animateFloatAsState(
-                            targetValue = pulseFactor,
-                            animationSpec = spring(dampingRatio = 0.6f),
-                            label = "Pulse"
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .scale(animatedScale)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Favorite,
-                                contentDescription = "Lungs pulsing",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = breathePhase,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.primary,
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Progress indication
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Simulated Loop:",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.5f)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            LinearProgressIndicator(
-                                progress = { playbackProgress },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(4.dp)
-                                    .clip(RoundedCornerShape(2.dp)),
-                                color = MaterialTheme.colorScheme.primary,
-                                trackColor = Color.White.copy(alpha = 0.15f)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                  text = String.format("%02d:00", (playbackProgress * routine.durationMinutes).toInt()),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.8f),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
                 }
             }
 
@@ -234,35 +148,8 @@ fun ExerciseTutorialCard(
             // Action Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.Center
             ) {
-                // Play/Pause Simulated Demo Button
-                Button(
-                    onClick = { isPlaying = !isPlaying },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(38.dp)
-                        .testTag("simulate_play_button_${routine.id}"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isPlaying) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = if (isPlaying) Color.Black else MaterialTheme.colorScheme.onSurface
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
-                        contentDescription = "Simulate Playback Button",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (isPlaying) "Stop Demo" else "Demo Trainer",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
                 // Launch External Tutorial Web Link
                 Button(
                     onClick = {
@@ -270,7 +157,7 @@ fun ExerciseTutorialCard(
                         context.startActivity(intent)
                     },
                     modifier = Modifier
-                        .weight(1.2f)
+                        .fillMaxWidth()
                         .height(38.dp)
                         .testTag("launch_tutorial_link_${routine.id}"),
                     colors = ButtonDefaults.buttonColors(

@@ -27,7 +27,7 @@ data class HealthRoutine(
     val stepDetailsID: List<StepDetail> = emptyList(),
     val loops: Int = 1,
     val tutorialUrl: String = "", //"https://www.youtube.com/results?search_query=kateda+martial+art+health+breath",
-    val imageUrl: String? = null
+    val slidesUrl: List<String> = emptyList()
 )
 
 class KeepFitViewModel(application: Application) : AndroidViewModel(application) {
@@ -102,9 +102,7 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
                     stepDetailsID = ex.stepDetailsID ?: emptyList(),
                     loops = ex.loops ?: 1,
                     tutorialUrl = ex.videoUrl.orEmpty(), //?: "https://www.youtube.com/results?search_query=kateda+martial+art+health+breath",
-                    imageUrl = if (ex.id.contains("breath") || ex.titleEN.lowercase().contains("breath")) "breath" 
-                               else if (ex.id.contains("stance")) "stance"
-                               else "power"
+                    slidesUrl = ex.slidesUrl ?: emptyList()
                 )
             }
             _katedaWorkoutCatalog.value = routines
