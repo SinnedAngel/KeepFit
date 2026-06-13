@@ -37,6 +37,13 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
     private val _katedaWorkoutCatalog = MutableStateFlow<List<HealthRoutine>>(emptyList())
     val KatedaWorkoutCatalog: StateFlow<List<HealthRoutine>> = _katedaWorkoutCatalog.asStateFlow()
 
+    private val _beltLevels = MutableStateFlow<List<BeltLevel>>(emptyList())
+    val beltLevels: StateFlow<List<BeltLevel>> = _beltLevels.asStateFlow()
+
+    val KatedaLevelNames: StateFlow<List<String>> = _beltLevels.map { levels ->
+        levels.map { it.nameEN }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     init {
         val database = KeepFitDatabase.getDatabase(application)
         repository = KeepFitRepository(database.keepFitDao())
@@ -48,26 +55,23 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
             val today = repository.getTodayDateString()
             repository.addStepsToDate(today, 1250) // Starting seed
             
-            fetchExercisesFromSupabase()
+            fetchSupabaseData()
         }
     }
 
-    private suspend fun fetchExercisesFromSupabase() {
+    private suspend fun fetchSupabaseData() {
         try {
-            val exercises = SupabaseClient.api.getExercises(
-                apiKey = com.example.BuildConfig.SUPABASE_ANON_KEY,
-                auth = "Bearer ${com.example.BuildConfig.SUPABASE_ANON_KEY}"
-            )
+            val apiKey = com.example.BuildConfig.SUPABASE_ANON_KEY
+            val auth = "Bearer $apiKey"
+
+            // Fetch belt levels first so we can map exercises correctly
+            val levels = SupabaseClient.api.getBeltLevels(apiKey, auth)
+            _beltLevels.value = levels
+
+            val exercises = SupabaseClient.api.getExercises(apiKey, auth)
             
             val routines = exercises.map { ex ->
-                val diffMap = mapOf(
-                    1 to "Kateda Basic (Healthy Movement)",
-                    2 to "Kateda Level 1 (Self-Defense Fundamentals)",
-                    3 to "Kateda Level 2 (Central Energy Breath)",
-                    4 to "Kateda Level 3 (Healing & Oxygenation)",
-                    5 to "Kateda Master (Power Synthesis)"
-                )
-                val level = diffMap[ex.difficulty ?: 1] ?: "Kateda Basic (Healthy Movement)"
+                val level = levels.find { it.id == ex.difficulty }?.nameEN ?: "White Belt"
                 
                 HealthRoutine(
                     id = ex.id,
@@ -140,20 +144,13 @@ class KeepFitViewModel(application: Application) : AndroidViewModel(application)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Optimal Balance")
 
-    val KatedaLevels = listOf(
-        "Kateda Basic (Healthy Movement)",
-        "Kateda Level 1 (Self-Defense Fundamentals)",
-        "Kateda Level 2 (Central Energy Breath)",
-        "Kateda Level 3 (Healing & Oxygenation)",
-        "Kateda Master (Power Synthesis)"
-    )
-
     // Filtered routines based on the user's level
-    val recommendedRoutines: StateFlow<List<HealthRoutine>> = combine(userProfile, KatedaWorkoutCatalog) { profile, catalog ->
+    val recommendedRoutines: StateFlow<List<HealthRoutine>> = combine(userProfile, KatedaWorkoutCatalog, beltLevels) { profile, catalog, levels ->
+        val basicLevelName = levels.find { it.id == 1 }?.nameEN ?: "White Belt"
         catalog.filter { routine ->
             routine.levelRequired == profile.KatedaLevel || 
             // Also recommend basic if they are higher level
-            (profile.KatedaLevel != "Kateda Basic (Healthy Movement)" && routine.levelRequired == "Kateda Basic (Healthy Movement)")
+            (profile.KatedaLevel != basicLevelName && routine.levelRequired == basicLevelName)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 

@@ -11,4 +11,11 @@ interface SupabaseApi {
         @Header("Authorization") auth: String,
         @Query("select") select: String = "*"
     ): List<SupabaseExercise>
+
+    @GET("belt_levels")
+    suspend fun getBeltLevels(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") auth: String,
+        @Query("select") select: String = "*"
+    ): List<BeltLevel>
 }

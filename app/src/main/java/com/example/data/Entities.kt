@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 data class UserProfile(
     @PrimaryKey val id: Int = 1,
     val name: String = "Kateda Practitioner",
-    val KatedaLevel: String = "Central Energy (Level 2)", // Kateda Martial Arts specifically uses "Central Energy", "Self Defense Bas", "Healing Breathing", "Inner Power Master"
+    val KatedaLevel: String = "White Belt", // Default to the first belt level from API
     val heightCm: Double = 170.0,
     val weightKg: Double = 70.0,
     val dailyStepGoal: Int = 8000,

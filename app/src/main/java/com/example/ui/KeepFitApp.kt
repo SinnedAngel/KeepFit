@@ -32,6 +32,7 @@ fun KeepFitApp(
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val todaySteps by viewModel.todaySteps.collectAsStateWithLifecycle()
     val currentBmiRating by viewModel.currentBmiSymbolicRating.collectAsStateWithLifecycle()
+    val katedaLevelNames by viewModel.KatedaLevelNames.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -155,7 +156,7 @@ fun KeepFitApp(
                         viewModel.updateProfile(name, level, height, weight, stepGoal, languageCode)
                         showEditProfileDialog = false
                     },
-                    levels = viewModel.KatedaLevels
+                    levels = katedaLevelNames
                 )
             }
         }
