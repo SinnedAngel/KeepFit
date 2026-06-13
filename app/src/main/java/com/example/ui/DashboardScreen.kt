@@ -35,16 +35,16 @@ import androidx.core.content.ContextCompat
 import com.example.R.mipmap.ic_launcher
 import com.example.viewmodel.KeepFitViewModel
 import java.util.Locale
+import androidx.core.graphics.createBitmap
 
 @Composable
 fun rememberAdaptiveIconPainter(resId: Int): ImageBitmap? {
     val context = LocalContext.current
     return remember(resId) {
         val drawable = ContextCompat.getDrawable(context, resId) ?: return@remember null
-        val bitmap = Bitmap.createBitmap(
+        val bitmap = createBitmap(
             drawable.intrinsicWidth.coerceAtLeast(1),
-            drawable.intrinsicHeight.coerceAtLeast(1),
-            Bitmap.Config.ARGB_8888
+            drawable.intrinsicHeight.coerceAtLeast(1)
         )
         val canvas = Canvas(bitmap)
         drawable.setBounds(0, 0, canvas.width, canvas.height)
