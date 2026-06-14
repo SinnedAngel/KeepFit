@@ -20,9 +20,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,7 +31,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,7 +41,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -50,7 +48,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -86,6 +83,7 @@ fun DashboardScreen(
     currentBmiRating: String
 ) {
     var showAddStepsDialog by remember { mutableStateOf(false) }
+    var showLogWeightDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
@@ -375,48 +373,23 @@ fun DashboardScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     // Quick Weight Adjuster for dynamic changes!
-                    var weightInputText by remember { mutableStateOf(userProfile.weightKg.toString()) }
-                    var showWeightError by remember { mutableStateOf(false) }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    Button(
+                        onClick = { showLogWeightDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("log_weight_manually_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.secondary
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        OutlinedTextField(
-                            value = weightInputText,
-                            onValueChange = { weightInputText = it },
-                            label = { Text("Log Weight (kg)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("weight_update_input")
-                        )
-                        Button(
-                            onClick = {
-                                val w = weightInputText.toDoubleOrNull()
-                                if (w != null && w > 20.0 && w < 300.0) {
-                                    viewModel.logBmiManually(userProfile.heightCm, w)
-                                    showWeightError = false
-                                } else {
-                                    showWeightError = true
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                            modifier = Modifier
-                                .height(56.dp)
-                                .testTag("update_weight_button")
-                        ) {
-                            Text("Log Weight", color = Color.Black, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    if (showWeightError) {
+                        Icon(imageVector = Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Please enter valid weight between 20kg and 300kg",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 4.dp)
+                            text = KatedaL10n.get("log_weight", userProfile.languageCode),
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -430,6 +403,17 @@ fun DashboardScreen(
             onDismiss = { showAddStepsDialog = false },
             onAddSteps = { steps ->
                 viewModel.addStepsToday(steps)
+            }
+        )
+    }
+
+    if (showLogWeightDialog) {
+        LogWeightDialog(
+            currentWeight = userProfile.weightKg,
+            languageCode = userProfile.languageCode,
+            onDismiss = { showLogWeightDialog = false },
+            onLogWeight = { weight ->
+                viewModel.logBmiManually(userProfile.heightCm, weight)
             }
         )
     }

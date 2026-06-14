@@ -86,6 +86,9 @@ object KatedaL10n {
         "log_manual_steps" to mapOf("EN" to "Log Manual Steps", "ID" to "Catat Langkah Manual"),
         "add_custom_steps" to mapOf("EN" to "Add Custom Steps", "ID" to "Tambah Langkah Manual"),
         "enter_steps_hint" to mapOf("EN" to "Enter steps count", "ID" to "Masukkan jumlah langkah"),
-        "quick_add" to mapOf("EN" to "Quick Add", "ID" to "Tambah Cepat")
+        "quick_add" to mapOf("EN" to "Quick Add", "ID" to "Tambah Cepat"),
+        "log_weight" to mapOf("EN" to "Log Weight", "ID" to "Catat Berat Badan"),
+        "enter_weight_hint" to mapOf("EN" to "Enter weight in kg", "ID" to "Masukkan berat dalam kg"),
+        "save_weight" to mapOf("EN" to "Save Weight", "ID" to "Simpan Berat")
     )
 }
