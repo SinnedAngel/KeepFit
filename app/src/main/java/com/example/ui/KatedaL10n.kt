@@ -82,6 +82,10 @@ object KatedaL10n {
         "est_burn" to mapOf("EN" to "ESTIMATED BURN", "ID" to "ESTIMASI KALORI"),
         "cycles_done" to mapOf("EN" to "CYCLES DONE", "ID" to "PUTARAN SELESAI"),
         "save_practice" to mapOf("EN" to "SAVE PRACTICE TO DIARY", "ID" to "SIMPAN LATIHAN"),
-        "close_no_log" to mapOf("EN" to "Close without logging", "ID" to "Tutup tanpa menyimpan")
+        "close_no_log" to mapOf("EN" to "Close without logging", "ID" to "Tutup tanpa menyimpan"),
+        "log_manual_steps" to mapOf("EN" to "Log Manual Steps", "ID" to "Catat Langkah Manual"),
+        "add_custom_steps" to mapOf("EN" to "Add Custom Steps", "ID" to "Tambah Langkah Manual"),
+        "enter_steps_hint" to mapOf("EN" to "Enter steps count", "ID" to "Masukkan jumlah langkah"),
+        "quick_add" to mapOf("EN" to "Quick Add", "ID" to "Tambah Cepat")
     )
 }
